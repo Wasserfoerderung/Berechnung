@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feuerwehr Wasserförderung - Taktische Karte</title>
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #f4f4f4;}
-        #map { flex-grow: 1; width: 100%; }
+        
+        /* FIX: Mindesthöhe garantiert, dass die Karte immer sichtbar bleibt */
+        #map { flex-grow: 1; width: 100%; min-height: 50vh; z-index: 1;}
         
         #info-bereich { 
             padding: 15px; background: #2c3e50; color: white;
@@ -30,6 +32,7 @@
         input, select { padding: 6px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; width: 85px; font-size: 13px; box-sizing: border-box;}
         
         #streckenNameInput, #gespeicherteStreckenSelect { width: 180px; }
+        #hoehenInput { background-color: #bdc3c7; color: #2c3e50; font-weight: bold; cursor: text; width: 75px;}
         #api-status { font-size: 11px; color: #f39c12; margin-top: 2px; position: absolute; bottom: -16px; white-space: nowrap; }
 
         .button { padding: 8px 12px; font-size: 13px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; height: 32px; display: flex; align-items: center; justify-content: center;}
@@ -39,6 +42,9 @@
         .btn-clear:hover { background-color: #c0392b; }
         .btn-save { background-color: #2980b9; }
         .btn-save:hover { background-color: #3498db; }
+        
+        .btn-history { background-color: #f39c12; width: 35px; padding: 0; font-size: 14px; }
+        .btn-history:hover { background-color: #d35400; }
 
         #ergebnis-box {
             width: 100%; background-color: #34495e;
@@ -118,7 +124,7 @@
             
             <div class="eingabe-gruppe">
                 <label title="Höhenmeter manuell eintragen bei API-Fehler">Höhe (Ziel):</label>
-                <input type="number" id="hoehenInput" value="0">
+                <input type="text" id="hoehenInput" value="0 m">
                 <span id="api-status"></span>
             </div>
 
@@ -154,6 +160,9 @@
                 <label title="Benötigter Druck am Verteiler">Druck Ziel:</label>
                 <input type="number" id="zieldruckInput" value="5.0" step="0.5" min="0" max="10">
             </div>
+
+            <button class="button btn-history" onclick="punktRueckgaengig()" title="Letzten Klick entfernen">↩️</button>
+            <button class="button btn-history" onclick="punktWiederherstellen()" title="Entfernten Klick wiederherstellen">↪️</button>
 
             <button class="button btn-calc" onclick="auswerten()">Berechnen</button>
             <button class="button btn-clear" onclick="streckeLoeschen()">Neu</button>
@@ -193,13 +202,16 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     
     <script>
         var map = L.map('map').setView([50.2925, 8.8142], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         var punkteListe = []; 
+        var markerListe = []; 
+        var geloeschtePunkteListe = []; 
+        
         var gesamtDistanz = 0; 
         var schlauchleitung = L.polyline([], {color: 'red', weight: 5, opacity: 0.8}).addTo(map); 
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
@@ -215,7 +227,6 @@
                 var container = L.DomUtil.create('div', 'leaflet-control-gps');
                 container.innerHTML = '🎯';
                 container.title = 'Meinen Standort ermitteln';
-                
                 container.onclick = function(e) {
                     e.stopPropagation();
                     map.locate({setView: true, maxZoom: 16});
@@ -233,22 +244,46 @@
         });
 
         map.on('locationerror', function(e) {
-            alert("Standort konnte nicht ermittelt werden. Bitte prüfen Sie die GPS- oder Browsereinstellungen. Fehler: " + e.message);
+            alert("Standort konnte nicht ermittelt werden. Fehler: " + e.message);
         });
 
         map.on('click', function(ereignis) { handleNeuerPunkt(ereignis.latlng); });
 
-        function handleNeuerPunkt(neueKoordinate) {
-            L.circleMarker(neueKoordinate, {radius: 4, color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 1}).addTo(knotenpunkteLayer);
-            if (punkteListe.length > 0) {
-                gesamtDistanz += punkteListe[punkteListe.length - 1].distanceTo(neueKoordinate);
-                document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
-                document.getElementById('ergebnis-box').style.display = 'none';
-                document.getElementById('druck-warnung-box').style.display = 'none';
-                document.getElementById('api-status').innerText = "";
-            }
+        function handleNeuerPunkt(neueKoordinate, isRedo = false) {
+            var marker = L.circleMarker(neueKoordinate, {radius: 4, color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 1}).addTo(knotenpunkteLayer);
+            markerListe.push(marker);
+            if (!isRedo) { geloeschtePunkteListe = []; }
             punkteListe.push(neueKoordinate);
-            schlauchleitung.addLatLng(neueKoordinate);
+            schlauchleitung.setLatLngs(punkteListe);
+            aktualisiereDistanz();
+        }
+
+        function punktRueckgaengig() {
+            if (punkteListe.length === 0) return;
+            let popperPunkt = punkteListe.pop();
+            geloeschtePunkteListe.push(popperPunkt); 
+            let popperMarker = markerListe.pop();
+            knotenpunkteLayer.removeLayer(popperMarker);
+            schlauchleitung.setLatLngs(punkteListe);
+            aktualisiereDistanz();
+        }
+
+        function punktWiederherstellen() {
+            if (geloeschtePunkteListe.length === 0) return;
+            let wiederhergestellterPunkt = geloeschtePunkteListe.pop();
+            handleNeuerPunkt(wiederhergestellterPunkt, true); 
+        }
+
+        function aktualisiereDistanz() {
+            gesamtDistanz = 0;
+            for (let i = 1; i < punkteListe.length; i++) {
+                gesamtDistanz += punkteListe[i-1].distanceTo(punkteListe[i]);
+            }
+            document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
+            document.getElementById('ergebnis-box').style.display = 'none';
+            document.getElementById('druck-warnung-box').style.display = 'none';
+            document.getElementById('api-status').innerText = "";
+            symboleLayer.clearLayers(); 
         }
 
         window.onload = function() { aktualisiereSpeicherDropdown(); };
@@ -281,11 +316,8 @@
                 streckeLoeschen(false); document.getElementById('streckenNameInput').value = name;
                 geladenePunkte.forEach(p => {
                     let koordinate = L.latLng(p.lat, p.lng);
-                    L.circleMarker(koordinate, {radius: 4, color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 1}).addTo(knotenpunkteLayer);
-                    if (punkteListe.length > 0) { gesamtDistanz += punkteListe[punkteListe.length - 1].distanceTo(koordinate); }
-                    punkteListe.push(koordinate); schlauchleitung.addLatLng(koordinate);
+                    handleNeuerPunkt(koordinate, true);
                 });
-                document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
                 map.fitBounds(schlauchleitung.getBounds());
             }
         }
@@ -300,12 +332,12 @@
         }
 
         function streckeLoeschen(allesLeeren = true) {
-            punkteListe = []; gesamtDistanz = 0;
+            punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
             document.getElementById('distanzAnzeige').innerText = '0 m';
             document.getElementById('ergebnis-box').style.display = 'none';
             document.getElementById('druck-warnung-box').style.display = 'none';
-            document.getElementById('hoehenInput').value = "0"; document.getElementById('api-status').innerText = "";
+            document.getElementById('hoehenInput').value = "0 m"; document.getElementById('api-status').innerText = "";
             if(allesLeeren) { document.getElementById('streckenNameInput').value = ""; document.getElementById('gespeicherteStreckenSelect').value = ""; }
         }
 
@@ -337,143 +369,114 @@
                 lats.push(dichtePunkte[i].lat.toFixed(5)); lons.push(dichtePunkte[i].lng.toFixed(5));
             }
 
-            let hoehen = [];
-            let apiErfolgreich = false;
+            let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
 
-            // --- NEU: HÄPPCHEN-TAKTIK FÜR DIE API ---
             try {
-                // Wir teilen die Punkte in 90er-Gruppen auf, um das API-Limit (100) nicht zu sprengen
-                for (let i = 0; i < lats.length; i += 90) {
-                    let chunkLats = lats.slice(i, i + 90);
-                    let chunkLons = lons.slice(i, i + 90);
-                    let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${chunkLats.join(',')}&longitude=${chunkLons.join(',')}`;
-                    
-                    let response = await fetch(apiUrl);
-                    let data = await response.json();
+                let response = await fetch(apiUrl); let data = await response.json();
 
-                    if (data.elevation && data.elevation.length > 0) {
-                        hoehen = hoehen.concat(data.elevation);
-                    } else {
-                        throw new Error("Fehler in API Antwort");
+                if (data.elevation && data.elevation.length > 0) {
+                    let hoehen = data.elevation;
+                    
+                    let startHoehe = hoehen[0];
+                    let zielHoehe = hoehen[hoehen.length - 1];
+                    let nettoHoehenunterschied = zielHoehe - startHoehe;
+                    
+                    let vorzeichen = nettoHoehenunterschied > 0 ? "+" : "";
+                    document.getElementById('hoehenInput').value = vorzeichen + Math.round(nettoHoehenunterschied) + " m";
+                    document.getElementById('api-status').innerText = "✅ Geladen";
+
+                    let volumen = parseInt(document.getElementById('volumenInput').value);
+                    let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
+                    let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
+                    let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
+                    let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
+                    let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
+
+                    let berechnungsVolumen = volumen / leitungsart;
+                    const reibungstabelle = {
+                        200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
+                        600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
+                        1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50
+                    };
+                    let reibungPro100m = reibungstabelle[berechnungsVolumen] || 1.1;
+
+                    let anzahlPumpen = 0;
+                    let ablaufDruck = pEntnahme;
+                    let gesamtDruckbedarf = 0;
+                    
+                    let maximalerRuhedruck = 0;
+                    let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
+                    let indexLetztePumpe = 0;
+
+                    L.marker(dichtePunkte[0], {icon: startIcon, title: "Wasserentnahme"}).addTo(symboleLayer);
+
+                    if (pEntnahme === 0) {
+                        speisenderDruckAktuell = pAusgang;
                     }
-                }
-                apiErfolgreich = true;
-            } catch (error) {
-                console.warn("API Fehler, wechsle in Offline-Modus", error);
-                apiErfolgreich = false;
-            }
 
-            // --- OFFLINE-FALLBACK ---
-            if (apiErfolgreich) {
-                let startHoehe = hoehen[0];
-                let zielHoehe = hoehen[hoehen.length - 1];
-                let nettoHoehenunterschied = zielHoehe - startHoehe;
-                document.getElementById('hoehenInput').value = Math.round(nettoHoehenunterschied);
-                document.getElementById('api-status').innerText = "✅ API OK";
-                document.getElementById('api-status').style.color = "#27ae60";
-            } else {
-                // API ist fehlgeschlagen (Kein Internet oder Server down). 
-                // Wir nehmen den Wert, den der Nutzer manuell eingetippt hat.
-                document.getElementById('api-status').innerText = "⚠️ Offline-Modus";
-                document.getElementById('api-status').style.color = "#e74c3c";
-                
-                let manuelleHoehe = parseFloat(document.getElementById('hoehenInput').value);
-                if (isNaN(manuelleHoehe)) manuelleHoehe = 0;
+                    for (let i = 1; i < dichtePunkte.length; i++) {
+                        let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
+                        let hDiff = hoehen[i] - hoehen[i-1]; 
+                        
+                        let verlustFliesdruck = (dist / 100 * reibungPro100m) + (hDiff / 10);
+                        gesamtDruckbedarf += verlustFliesdruck;
+                        ablaufDruck -= verlustFliesdruck;
 
-                // Wir berechnen eine gleichmäßige Steigung über alle Wegpunkte
-                hoehen = [];
-                let schritte = dichtePunkte.length > 1 ? dichtePunkte.length - 1 : 1;
-                let hoehenSchritt = manuelleHoehe / schritte;
-                
-                for(let i = 0; i < dichtePunkte.length; i++) {
-                    hoehen.push(i * hoehenSchritt);
-                }
-            }
+                        let gefaelleEcht = hoehen[indexLetztePumpe] - hoehen[i];
+                        let ruhedruckAnPunkt = speisenderDruckAktuell + (gefaelleEcht / 10);
+                        
+                        if (ruhedruckAnPunkt > maximalerRuhedruck) {
+                            maximalerRuhedruck = ruhedruckAnPunkt;
+                        }
 
-            // --- DIE BERECHNUNG BLEIBT IDENTISCH ---
-            let volumen = parseInt(document.getElementById('volumenInput').value);
-            let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
-            let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
-            let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
-            let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
-            let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
+                        if (ablaufDruck <= pEingang) {
+                            L.marker(dichtePunkte[i-1], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
+                            anzahlPumpen++;
+                            ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
+                            
+                            speisenderDruckAktuell = pAusgang;
+                            indexLetztePumpe = i-1;
+                        }
+                    }
 
-            let berechnungsVolumen = volumen / leitungsart;
-            const reibungstabelle = {
-                200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
-                600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
-                1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50
-            };
-            let reibungPro100m = reibungstabelle[berechnungsVolumen] || 1.1;
+                    if (ablaufDruck < pZiel) {
+                        L.marker(dichtePunkte[dichtePunkte.length - 2], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
+                        anzahlPumpen++;
+                    }
 
-            let anzahlPumpen = 0;
-            let ablaufDruck = pEntnahme;
-            let gesamtDruckbedarf = 0;
-            
-            let maximalerRuhedruck = 0;
-            let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
-            let indexLetztePumpe = 0;
+                    L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
 
-            L.marker(dichtePunkte[0], {icon: startIcon, title: "Wasserentnahme"}).addTo(symboleLayer);
+                    if (maximalerRuhedruck > 12.0) {
+                        document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
+                        document.getElementById('druck-warnung-box').style.display = 'block';
+                    }
 
-            if (pEntnahme === 0) { speisenderDruckAktuell = pAusgang; }
+                    let anzahlSchlaeuche = Math.ceil(gesamtDistanz / 20) * leitungsart;
+                    let laengeEinsatz = anzahlSchlaeuche * 20;
+                    let reservePumpen = anzahlPumpen > 0 ? Math.ceil(anzahlPumpen / 4) : 0;
+                    let reserveSchlaeuche = Math.ceil((gesamtDistanz * leitungsart) / 100);
+                    let laengeReserve = reserveSchlaeuche * 20;
+                    let gesamtPumpen = anzahlPumpen + reservePumpen;
+                    let gesamtSchlaeuche = anzahlSchlaeuche + reserveSchlaeuche;
+                    let laengeGesamt = gesamtSchlaeuche * 20;
 
-            for (let i = 1; i < dichtePunkte.length; i++) {
-                let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
-                let hDiff = hoehen[i] - hoehen[i-1]; 
-                
-                let verlustFliesdruck = (dist / 100 * reibungPro100m) + (hDiff / 10);
-                gesamtDruckbedarf += verlustFliesdruck;
-                ablaufDruck -= verlustFliesdruck;
-
-                let gefaelleEcht = hoehen[indexLetztePumpe] - hoehen[i];
-                let ruhedruckAnPunkt = speisenderDruckAktuell + (gefaelleEcht / 10);
-                
-                if (ruhedruckAnPunkt > maximalerRuhedruck) { maximalerRuhedruck = ruhedruckAnPunkt; }
-
-                if (ablaufDruck <= pEingang) {
-                    L.marker(dichtePunkte[i-1], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
-                    anzahlPumpen++;
-                    ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
+                    document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
+                    document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
+                    document.getElementById('laengeAnzeige').innerText = laengeEinsatz;
+                    document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
+                    document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
+                    document.getElementById('reserveLaengeAnzeige').innerText = laengeReserve;
+                    document.getElementById('gesamtPumpenAnzeige').innerText = gesamtPumpen;
+                    document.getElementById('gesamtSchlauchAnzeige').innerText = gesamtSchlaeuche;
+                    document.getElementById('gesamtLaengeAnzeige').innerText = laengeGesamt;
+                    document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
                     
-                    speisenderDruckAktuell = pAusgang;
-                    indexLetztePumpe = i-1;
+                    document.getElementById('ergebnis-box').style.display = 'flex';
                 }
+            } catch (error) {
+                document.getElementById('api-status').innerText = "❌ Fehler";
+                console.error(error);
             }
-
-            if (ablaufDruck < pZiel) {
-                L.marker(dichtePunkte[dichtePunkte.length - 2], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
-                anzahlPumpen++;
-            }
-
-            L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
-
-            if (maximalerRuhedruck > 12.0) {
-                document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
-                document.getElementById('druck-warnung-box').style.display = 'block';
-            }
-
-            let anzahlSchlaeuche = Math.ceil(gesamtDistanz / 20) * leitungsart;
-            let laengeEinsatz = anzahlSchlaeuche * 20;
-            let reservePumpen = anzahlPumpen > 0 ? Math.ceil(anzahlPumpen / 4) : 0;
-            let reserveSchlaeuche = Math.ceil((gesamtDistanz * leitungsart) / 100);
-            let laengeReserve = reserveSchlaeuche * 20;
-            let gesamtPumpen = anzahlPumpen + reservePumpen;
-            let gesamtSchlaeuche = anzahlSchlaeuche + reserveSchlaeuche;
-            let laengeGesamt = gesamtSchlaeuche * 20;
-
-            document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
-            document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
-            document.getElementById('laengeAnzeige').innerText = laengeEinsatz;
-            document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
-            document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
-            document.getElementById('reserveLaengeAnzeige').innerText = laengeReserve;
-            document.getElementById('gesamtPumpenAnzeige').innerText = gesamtPumpen;
-            document.getElementById('gesamtSchlauchAnzeige').innerText = gesamtSchlaeuche;
-            document.getElementById('gesamtLaengeAnzeige').innerText = laengeGesamt;
-            document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
-            
-            document.getElementById('ergebnis-box').style.display = 'flex';
         }
     </script>
 </body>
