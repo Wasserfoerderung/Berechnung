@@ -8,12 +8,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     
     <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #f4f4f4;}
+        /* Absolut stabile Höhenverteilung */
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; background-color: #f4f4f4; }
         
-        /* FIX: Mindesthöhe garantiert, dass die Karte immer sichtbar bleibt */
-        #map { flex-grow: 1; width: 100%; min-height: 50vh; z-index: 1;}
+        #map { flex: 1 1 auto; width: 100%; min-height: 50vh; z-index: 1; }
         
         #info-bereich { 
+            flex: 0 0 auto;
             padding: 15px; background: #2c3e50; color: white;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1000; 
             display: flex; flex-direction: column; gap: 15px; align-items: center; justify-content: center;
@@ -28,14 +30,16 @@
             display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: center; width: 100%;
         }
 
-        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 13px; position: relative; }
-        input, select { padding: 6px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; width: 85px; font-size: 13px; box-sizing: border-box;}
+        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 13px; position: relative; min-width: max-content;}
+        .eingabe-gruppe label { white-space: nowrap; margin-bottom: 2px; }
+        
+        input, select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 85px; font-size: 13px; box-sizing: border-box;}
         
         #streckenNameInput, #gespeicherteStreckenSelect { width: 180px; }
         #hoehenInput { background-color: #bdc3c7; color: #2c3e50; font-weight: bold; cursor: text; width: 75px;}
         #api-status { font-size: 11px; color: #f39c12; margin-top: 2px; position: absolute; bottom: -16px; white-space: nowrap; }
 
-        .button { padding: 8px 12px; font-size: 13px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; height: 32px; display: flex; align-items: center; justify-content: center;}
+        .button { padding: 8px 12px; font-size: 13px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; height: 32px; display: flex; align-items: center; justify-content: center; white-space: nowrap;}
         .btn-calc { background-color: #27ae60; font-size: 14px; padding: 10px 15px;}
         .btn-calc:hover { background-color: #2ecc71; }
         .btn-clear { background-color: #e74c3c; }
@@ -52,19 +56,23 @@
             flex-direction: column; align-items: center; box-sizing: border-box;
         }
         .ergebnis-container {
-            display: flex; justify-content: space-between; width: 100%; max-width: 850px;
+            display: flex; justify-content: space-between; width: 100%; max-width: 850px; flex-wrap: wrap; gap: 10px;
         }
         .ergebnis-spalte {
-            display: flex; flex-direction: column; align-items: center; width: 32%;
+            display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 200px;
         }
-        .ergebnis-spalte h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;}
-        .ergebnis-spalte h2 { margin: 5px 0; font-size: 16px; font-weight: normal; text-align: center;}
+        .ergebnis-spalte h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; text-align: center;}
+        .ergebnis-spalte h2 { margin: 5px 0; font-size: 16px; font-weight: normal; text-align: center; white-space: nowrap;}
         .ergebnis-spalte span { font-weight: bold; font-size: 22px; }
         
-        .laengen-info { font-size: 14px; color: #bdc3c7; margin-top: -3px; margin-bottom: 5px; font-weight: bold;}
+        .laengen-info { font-size: 14px; color: #bdc3c7; margin-top: -3px; margin-bottom: 5px; font-weight: bold; text-align: center;}
         .laengen-info span { font-size: 16px; }
         
         .rahmen-links { border-left: 2px solid #7f8c8d; }
+        
+        @media (max-width: 650px) {
+            .rahmen-links { border-left: none; border-top: 2px solid #7f8c8d; padding-top: 10px;}
+        }
 
         #druck-warnung-box {
             width: 100%; max-width: 850px; background-color: #e74c3c; color: white;
@@ -97,7 +105,9 @@
 
     <div id="info-bereich">
         
-        <div id="speicher-leiste">
+        <button id="toggleSpeicherBtn" class="button" style="background-color: #34495e; width: 100%; max-width: 900px; padding: 5px; font-size: 12px; height: 24px;" onclick="toggleSpeicher()">💾 Speichermenü einblenden ▼</button>
+
+        <div id="speicher-leiste" style="display: none;">
             <div class="eingabe-gruppe">
                 <label>Aktuelle Strecke benennen:</label>
                 <input type="text" id="streckenNameInput" placeholder="z.B. Aussiedlerhof...">
@@ -129,7 +139,7 @@
             </div>
 
             <div class="eingabe-gruppe">
-                <label>Volumen (l):</label>
+                <label>Volumenstrom [l/min]:</label>
                 <select id="volumenInput">
                     <option value="400">400</option><option value="600">600</option>
                     <option value="800" selected>800</option><option value="1000">1000</option>
@@ -145,19 +155,19 @@
             </div>
 
             <div class="eingabe-gruppe">
-                <label title="0.0 = Offenes Gewässer">Entnahme:</label>
+                <label title="0.0 = Offenes Gewässer">Entnahme [bar]:</label>
                 <input type="number" id="entnahmeInput" value="0.0" step="0.5" min="0" max="10">
             </div>
             <div class="eingabe-gruppe">
-                <label title="Druck am Ausgang der TS">Ausgang:</label>
-                <input type="number" id="ausgangsdruckInput" value="8.0" step="0.5" min="0" max="15">
+                <label title="Druck am Ausgang der TS">Ausgang [bar]:</label>
+                <input type="number" id="ausgangsdruckInput" value="10.0" step="0.5" min="0" max="15">
             </div>
             <div class="eingabe-gruppe">
-                <label title="Mindestdruck für Zwischenpumpen">Eingang TS:</label>
+                <label title="Mindestdruck für Zwischenpumpen">Eingang [bar]:</label>
                 <input type="number" id="eingangsdruckInput" value="1.5" step="0.1" min="0" max="5">
             </div>
             <div class="eingabe-gruppe">
-                <label title="Benötigter Druck am Verteiler">Druck Ziel:</label>
+                <label title="Benötigter Druck am Verteiler">Ziel [bar]:</label>
                 <input type="number" id="zieldruckInput" value="5.0" step="0.5" min="0" max="10">
             </div>
 
@@ -196,7 +206,7 @@
                     <div class="laengen-info" style="color: #3498db;">(Länge: <span id="gesamtLaengeAnzeige">0</span> m)</div>
                 </div>
             </div>
-            <p style="margin: 15px 0 0 0; font-size: 13px; color: #bdc3c7;">
+            <p style="margin: 15px 0 0 0; font-size: 13px; color: #bdc3c7; text-align: center;">
                 (Gesamtdruckbedarf der reinen Strecke: <span id="druckbedarfAnzeige">0</span> bar)
             </p>
         </div>
@@ -284,6 +294,18 @@
             document.getElementById('druck-warnung-box').style.display = 'none';
             document.getElementById('api-status').innerText = "";
             symboleLayer.clearLayers(); 
+        }
+
+        function toggleSpeicher() {
+            var leiste = document.getElementById('speicher-leiste');
+            var btn = document.getElementById('toggleSpeicherBtn');
+            if (leiste.style.display === 'none') {
+                leiste.style.display = 'flex';
+                btn.innerHTML = '💾 Speichermenü ausblenden ▲';
+            } else {
+                leiste.style.display = 'none';
+                btn.innerHTML = '💾 Speichermenü einblenden ▼';
+            }
         }
 
         window.onload = function() { aktualisiereSpeicherDropdown(); };
