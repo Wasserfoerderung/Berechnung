@@ -216,12 +216,116 @@
     
     <script>
         var map = L.map('map').setView([50.2925, 8.8142], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        
+        // --- KARTEN-EBENEN (LAYERS) ---
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
+        var ofmLayer = L.layerGroup();
+        var ladeTimeout = null;
+
+        // Mehrere Overpass-Server als Fallback: manche Firewalls/Netzwerke
+        // blockieren einzelne Hosts (z.B. lz4.overpass-api.de) mit
+        // ERR_CONNECTION_TIMED_OUT. Wenn der erste nicht erreichbar ist,
+        // wird automatisch der nächste versucht.
+        var overpassMirrors = [
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.kumi.systems/api/interpreter",
+            "https://lz4.overpass-api.de/api/interpreter"
+        ];
+
+        map.on('overlayadd', function(e) {
+            if (e.layer === ofmLayer) { 
+                ladeHydranten(); 
+            }
+        });
+        
+        map.on('moveend', function() {
+            if (map.hasLayer(ofmLayer)) { 
+                clearTimeout(ladeTimeout);
+                ladeTimeout = setTimeout(ladeHydranten, 500);
+            }
+        });
+
+        async function ladeHydranten() {
+            let statusText = document.getElementById('api-status');
+            
+            // Zoom-Schranke auf 14 erhöht, um Server-Timeouts bei großen Bounding Boxes zu verhindern
+            if (map.getZoom() < 14) {
+                ofmLayer.clearLayers();
+                statusText.innerText = "⚠️ Bitte zoomen (ab Stufe 14) für Hydranten";
+                return;
+            }
+            
+            statusText.innerText = "⏳ Lade Hydranten...";
+            
+            var bounds = map.getBounds();
+            var bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+            
+            var query = `[out:json][timeout:15];(node["emergency"="fire_hydrant"](${bbox});node["emergency"="suction_point"](${bbox});node["emergency"="water_tank"](${bbox}););out;`;
+
+            for (let i = 0; i < overpassMirrors.length; i++) {
+                var url = overpassMirrors[i] + "?data=" + encodeURIComponent(query);
+                try {
+                    let response = await fetch(url);
+                    if (!response.ok) throw new Error("HTTP-Fehler: " + response.status);
+
+                    let data = await response.json();
+                    ofmLayer.clearLayers();
+
+                    if (!data.elements || data.elements.length === 0) {
+                        statusText.innerText = "✅ Keine Entnahmestellen im Ausschnitt";
+                        return;
+                    }
+
+                    data.elements.forEach(function(node) {
+                        var isSuction = node.tags && node.tags['emergency'] === 'suction_point';
+                        var isTank = node.tags && node.tags['emergency'] === 'water_tank';
+
+                        var titel = isSuction ? "Saugstelle" : (isTank ? "Löschwasserbehälter" : "Hydrant");
+                        var farbe = isSuction || isTank ? "#3498db" : "#e74c3c";
+
+                        var popupText = `<b>${titel}</b><br>`;
+                        if(node.tags) {
+                            if(node.tags['fire_hydrant:type']) popupText += "Typ: " + node.tags['fire_hydrant:type'] + "<br>";
+                            if(node.tags['fire_hydrant:diameter']) popupText += "Rohr: DN " + node.tags['fire_hydrant:diameter'] + "<br>";
+                            if(node.tags['ref']) popupText += "Nr: " + node.tags['ref'] + "<br>";
+                            if(node.tags['water_source']) popupText += "Quelle: " + node.tags['water_source'] + "<br>";
+                        }
+
+                        var hIcon = L.divIcon({
+                            className: '',
+                            html: `<div style="background-color: ${farbe}; border: 2px solid white; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.8);"></div>`,
+                            iconSize: [16, 16],
+                            iconAnchor: [8, 8]
+                        });
+
+                        L.marker([node.lat, node.lon], {icon: hIcon}).bindPopup(popupText).addTo(ofmLayer);
+                    });
+
+                    statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen (${overpassMirrors[i].replace('https://','').split('/')[0]})`;
+                    return; // Erfolg -> nicht weitere Mirrors probieren
+
+                } catch (err) {
+                    console.warn("Overpass-Mirror nicht erreichbar (" + overpassMirrors[i] + "):", err);
+                    // weiter zum nächsten Mirror in der Liste
+                }
+            }
+
+            // Alle Mirrors fehlgeschlagen
+            statusText.innerText = "❌ Kein Overpass-Server erreichbar (Netzwerk/Firewall prüfen)";
+        }
+
+        var baseMaps = { "Standard Karte": osmLayer };
+        var overlayMaps = { "🚒 Hydranten anzeigen": ofmLayer };
+        L.control.layers(baseMaps, overlayMaps).addTo(map);
+        
+        // --- KARTEN LOGIK FÜR WASSERFÖRDERUNG ---
         var punkteListe = []; 
         var markerListe = []; 
         var geloeschtePunkteListe = []; 
-        
         var gesamtDistanz = 0; 
         var schlauchleitung = L.polyline([], {color: 'red', weight: 5, opacity: 0.8}).addTo(map); 
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
