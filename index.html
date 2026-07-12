@@ -6,6 +6,7 @@
     <title>Feuerwehr Wasserförderung - Taktische Karte</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     
     <style>
         /* Absolut stabile Höhenverteilung */
@@ -22,7 +23,7 @@
         }
 
         #speicher-leiste {
-            display: flex; flex-wrap: wrap; gap: 10px; width: 100%; max-width: 900px; 
+            display: flex; flex-wrap: wrap; gap: 10px; width: 100%; max-width: 1000px; 
             padding-bottom: 15px; border-bottom: 1px solid #34495e; align-items: flex-end; justify-content: center;
         }
         
@@ -56,10 +57,10 @@
             flex-direction: column; align-items: center; box-sizing: border-box;
         }
         .ergebnis-container {
-            display: flex; justify-content: space-between; width: 100%; max-width: 850px; flex-wrap: wrap; gap: 10px;
+            display: flex; justify-content: space-between; width: 100%; max-width: 1000px; flex-wrap: wrap; gap: 10px;
         }
         .ergebnis-spalte {
-            display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 200px;
+            display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 180px;
         }
         .ergebnis-spalte h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; text-align: center;}
         .ergebnis-spalte h2 { margin: 5px 0; font-size: 16px; font-weight: normal; text-align: center; white-space: nowrap;}
@@ -70,12 +71,12 @@
         
         .rahmen-links { border-left: 2px solid #7f8c8d; }
         
-        @media (max-width: 650px) {
+        @media (max-width: 800px) {
             .rahmen-links { border-left: none; border-top: 2px solid #7f8c8d; padding-top: 10px;}
         }
 
         #druck-warnung-box {
-            width: 100%; max-width: 850px; background-color: #e74c3c; color: white;
+            width: 100%; max-width: 1000px; background-color: #e74c3c; color: white;
             padding: 12px; margin-top: 10px; border-radius: 5px; display: none;
             text-align: center; font-weight: bold; font-size: 14px;
             animation: blinken 2s infinite; box-sizing: border-box; line-height: 1.4;
@@ -84,6 +85,25 @@
             0% { background-color: #e74c3c; }
             50% { background-color: #c0392b; }
             100% { background-color: #e74c3c; }
+        }
+
+        /* NEUE CSS KLASSEN FÜR DIE ZUKLAPPBARE KOORDINATEN-BOX */
+        #koordinaten-box {
+            display: none; width: 100%; max-width: 1000px; 
+            margin-top: 10px; flex-direction: column; align-items: center; box-sizing: border-box;
+        }
+        #toggleKoorBtn {
+            background-color: #34495e; width: 100%; font-size: 13px; color: #f1c40f; 
+            padding: 10px; text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 5px; cursor: pointer; border: none; font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        #toggleKoorBtn:hover { background-color: #2c3e50; }
+        
+        #koordinaten-liste {
+            display: none; width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 14px; 
+            background: #2c3e50; padding: 15px; border-radius: 0 0 5px 5px; 
+            overflow-x: auto; color: white; margin-top: 2px; box-sizing: border-box;
         }
 
         .leaflet-control-gps {
@@ -105,7 +125,7 @@
 
     <div id="info-bereich">
         
-        <button id="toggleSpeicherBtn" class="button" style="background-color: #34495e; width: 100%; max-width: 900px; padding: 5px; font-size: 12px; height: 24px;" onclick="toggleSpeicher()">💾 Speichermenü einblenden ▼</button>
+        <button id="toggleSpeicherBtn" class="button" style="background-color: #34495e; width: 100%; max-width: 1000px; padding: 5px; font-size: 12px; height: 24px;" onclick="toggleSpeicher()">💾 Speichermenü einblenden ▼</button>
 
         <div id="speicher-leiste" style="display: none;">
             <div class="eingabe-gruppe">
@@ -205,16 +225,59 @@
                     <h2 style="color: white;">B-Schläuche: <span id="gesamtSchlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info" style="color: #3498db;">(Länge: <span id="gesamtLaengeAnzeige">0</span> m)</div>
                 </div>
+
+                <div class="ergebnis-spalte rahmen-links">
+                    <h3 style="color: #9b59b6;">Pendelverkehr</h3>
+                    <h2 style="color: white;">TLF 4000: <span id="tlfAnzeige">0</span></h2>
+                    <div class="laengen-info" style="color: #9b59b6;">(Alternative)</div>
+                </div>
             </div>
             <p style="margin: 15px 0 0 0; font-size: 13px; color: #bdc3c7; text-align: center;">
                 (Gesamtdruckbedarf der reinen Strecke: <span id="druckbedarfAnzeige">0</span> bar)
             </p>
         </div>
+
+        <div id="koordinaten-box">
+            <button id="toggleKoorBtn" onclick="toggleKoordinaten()">📍 Standort-Koordinaten (UTM WGS84) einblenden ▼</button>
+            <div id="koordinaten-liste"></div>
+        </div>
+
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     
     <script>
+        // --- FUNKTION: LAT/LON IN UTM UMRECHNEN ---
+        function getUTM(lat, lon) {
+            let zone = Math.floor((lon + 180) / 6) + 1;
+            let projString = `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
+            let utm = proj4(projString, [lon, lat]);
+            
+            let letters = "CDEFGHJKLMNPQRSTUVWXX";
+            let band = letters.charAt(Math.floor((lat + 80) / 8));
+            if (lat >= 72 && lat < 84) band = 'X';
+            
+            let easting = Math.round(utm[0]).toString().padStart(6, '0');
+            let northing = Math.round(utm[1]).toString().padStart(7, '0');
+            
+            return `${zone}${band} ${easting} ${northing}`;
+        }
+
+        // --- FUNKTION: KOORDINATEN-LISTE EIN-/AUSKLAPPEN ---
+        function toggleKoordinaten() {
+            var liste = document.getElementById('koordinaten-liste');
+            var btn = document.getElementById('toggleKoorBtn');
+            if (liste.style.display === 'none' || liste.style.display === '') {
+                liste.style.display = 'block';
+                btn.innerHTML = '📍 Standort-Koordinaten (UTM WGS84) ausblenden ▲';
+                btn.style.borderRadius = '5px 5px 0 0';
+            } else {
+                liste.style.display = 'none';
+                btn.innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
+                btn.style.borderRadius = '5px';
+            }
+        }
+
         var map = L.map('map').setView([50.2925, 8.8142], 14);
         
         // --- KARTEN-EBENEN (LAYERS) ---
@@ -226,10 +289,6 @@
         var ofmLayer = L.layerGroup();
         var ladeTimeout = null;
 
-        // Mehrere Overpass-Server als Fallback: manche Firewalls/Netzwerke
-        // blockieren einzelne Hosts (z.B. lz4.overpass-api.de) mit
-        // ERR_CONNECTION_TIMED_OUT. Wenn der erste nicht erreichbar ist,
-        // wird automatisch der nächste versucht.
         var overpassMirrors = [
             "https://overpass-api.de/api/interpreter",
             "https://overpass.kumi.systems/api/interpreter",
@@ -252,7 +311,6 @@
         async function ladeHydranten() {
             let statusText = document.getElementById('api-status');
             
-            // Zoom-Schranke auf 14 erhöht, um Server-Timeouts bei großen Bounding Boxes zu verhindern
             if (map.getZoom() < 14) {
                 ofmLayer.clearLayers();
                 statusText.innerText = "⚠️ Bitte zoomen (ab Stufe 14) für Hydranten";
@@ -306,15 +364,13 @@
                     });
 
                     statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen (${overpassMirrors[i].replace('https://','').split('/')[0]})`;
-                    return; // Erfolg -> nicht weitere Mirrors probieren
+                    return; 
 
                 } catch (err) {
                     console.warn("Overpass-Mirror nicht erreichbar (" + overpassMirrors[i] + "):", err);
-                    // weiter zum nächsten Mirror in der Liste
                 }
             }
 
-            // Alle Mirrors fehlgeschlagen
             statusText.innerText = "❌ Kein Overpass-Server erreichbar (Netzwerk/Firewall prüfen)";
         }
 
@@ -396,6 +452,7 @@
             document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
             document.getElementById('ergebnis-box').style.display = 'none';
             document.getElementById('druck-warnung-box').style.display = 'none';
+            document.getElementById('koordinaten-box').style.display = 'none';
             document.getElementById('api-status').innerText = "";
             symboleLayer.clearLayers(); 
         }
@@ -463,6 +520,13 @@
             document.getElementById('distanzAnzeige').innerText = '0 m';
             document.getElementById('ergebnis-box').style.display = 'none';
             document.getElementById('druck-warnung-box').style.display = 'none';
+            
+            // Boxen beim Löschen ebenfalls verstecken und Button resetten
+            document.getElementById('koordinaten-box').style.display = 'none';
+            document.getElementById('koordinaten-liste').style.display = 'none';
+            document.getElementById('toggleKoorBtn').innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
+            document.getElementById('toggleKoorBtn').style.borderRadius = '5px';
+            
             document.getElementById('hoehenInput').value = "0 m"; document.getElementById('api-status').innerText = "";
             if(allesLeeren) { document.getElementById('streckenNameInput').value = ""; document.getElementById('gespeicherteStreckenSelect').value = ""; }
         }
@@ -488,6 +552,7 @@
             document.getElementById('api-status').innerText = "⏳ Lade API...";
             symboleLayer.clearLayers(); 
             document.getElementById('druck-warnung-box').style.display = 'none';
+            document.getElementById('koordinaten-box').style.display = 'none';
 
             let dichtePunkte = interpoliereStrecke(punkteListe, 50);
             let lats = []; let lons = [];
@@ -534,7 +599,13 @@
                     let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
                     let indexLetztePumpe = 0;
 
+                    let coordHtml = `<div style="display: grid; grid-template-columns: max-content 1fr; gap: 5px 15px;">`;
+
                     L.marker(dichtePunkte[0], {icon: startIcon, title: "Wasserentnahme"}).addTo(symboleLayer);
+                    coordHtml += `
+                        <div style="color: #3498db; font-weight: bold;">Wasserentnahme:</div>
+                        <div>${getUTM(dichtePunkte[0].lat, dichtePunkte[0].lng)}</div>
+                    `;
 
                     if (pEntnahme === 0) {
                         speisenderDruckAktuell = pAusgang;
@@ -558,6 +629,12 @@
                         if (ablaufDruck <= pEingang) {
                             L.marker(dichtePunkte[i-1], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
                             anzahlPumpen++;
+                            
+                            coordHtml += `
+                                <div style="color: #e74c3c; font-weight: bold;">Pumpe (TS) ${anzahlPumpen}:</div>
+                                <div>${getUTM(dichtePunkte[i-1].lat, dichtePunkte[i-1].lng)}</div>
+                            `;
+
                             ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
                             
                             speisenderDruckAktuell = pAusgang;
@@ -568,9 +645,18 @@
                     if (ablaufDruck < pZiel) {
                         L.marker(dichtePunkte[dichtePunkte.length - 2], {icon: tsIcon, title: "Feuerlöschkreiselpumpe (TS)"}).addTo(symboleLayer);
                         anzahlPumpen++;
+                        
+                        coordHtml += `
+                            <div style="color: #e74c3c; font-weight: bold;">Pumpe (TS) ${anzahlPumpen}:</div>
+                            <div>${getUTM(dichtePunkte[dichtePunkte.length - 2].lat, dichtePunkte[dichtePunkte.length - 2].lng)}</div>
+                        `;
                     }
 
                     L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
+                    coordHtml += `
+                        <div style="color: #c0392b; font-weight: bold;">Verteiler (Ziel):</div>
+                        <div>${getUTM(dichtePunkte[dichtePunkte.length - 1].lat, dichtePunkte[dichtePunkte.length - 1].lng)}</div>
+                    </div>`;
 
                     if (maximalerRuhedruck > 12.0) {
                         document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
@@ -586,6 +672,9 @@
                     let gesamtSchlaeuche = anzahlSchlaeuche + reserveSchlaeuche;
                     let laengeGesamt = gesamtSchlaeuche * 20;
 
+                    let streckeInKm = gesamtDistanz / 1000;
+                    let tlfBedarf = Math.ceil((volumen * (streckeInKm + 4)) / 1000);
+
                     document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
                     document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
                     document.getElementById('laengeAnzeige').innerText = laengeEinsatz;
@@ -597,7 +686,18 @@
                     document.getElementById('gesamtLaengeAnzeige').innerText = laengeGesamt;
                     document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
                     
+                    document.getElementById('tlfAnzeige').innerText = tlfBedarf;
+                    
+                    // Boxen einblenden
                     document.getElementById('ergebnis-box').style.display = 'flex';
+                    
+                    // Koordinaten aktualisieren und Box anzeigen, Liste aber initial zuklappen
+                    document.getElementById('koordinaten-liste').innerHTML = coordHtml;
+                    document.getElementById('koordinaten-box').style.display = 'flex';
+                    document.getElementById('koordinaten-liste').style.display = 'none';
+                    document.getElementById('toggleKoorBtn').innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
+                    document.getElementById('toggleKoorBtn').style.borderRadius = '5px';
+
                 }
             } catch (error) {
                 document.getElementById('api-status').innerText = "❌ Fehler";
