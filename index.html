@@ -2,156 +2,171 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Feuerwehr Wasserförderung - Taktische Karte</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     
     <style>
-        /* Absolut stabile Höhenverteilung */
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
         body { font-family: Arial, sans-serif; display: flex; flex-direction: column; background-color: #f4f4f4; }
         
-        #map { flex: 1 1 auto; width: 100%; min-height: 50vh; z-index: 1; }
+        #map { flex: 1 1 auto; width: 100%; min-height: 40vh; z-index: 1; }
         
         #info-bereich { 
             flex: 0 0 auto;
-            padding: 15px; background: #2c3e50; color: white;
+            padding: 12px; background: #2c3e50; color: white;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1000; 
-            display: flex; flex-direction: column; gap: 15px; align-items: center; justify-content: center;
+            display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;
         }
 
         #speicher-leiste {
             display: flex; flex-wrap: wrap; gap: 10px; width: 100%; max-width: 1000px; 
-            padding-bottom: 15px; border-bottom: 1px solid #34495e; align-items: flex-end; justify-content: center;
+            padding-bottom: 10px; border-bottom: 1px solid #34495e; align-items: flex-end; justify-content: center;
         }
         
         #eingabe-leiste {
-            display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: center; width: 100%;
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; justify-content: center; width: 100%;
         }
 
-        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 13px; position: relative; min-width: max-content;}
-        .eingabe-gruppe label { white-space: nowrap; margin-bottom: 2px; }
+        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 14px; position: relative; min-width: 130px; flex: 1; }
+        .eingabe-gruppe label { white-space: nowrap; margin-bottom: 3px; font-weight: bold; color: #ecf0f1; }
         
-        input, select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 100%; font-size: 13px; box-sizing: border-box;}
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%; font-size: 16px; box-sizing: border-box; background: #fff; min-height: 44px; }
         
-        #streckenNameInput, #gespeicherteStreckenSelect { min-width: 180px; }
+        #streckenNameInput, #gespeicherteStreckenSelect { min-width: 160px; }
         #hoehenInput { background-color: #bdc3c7; color: #2c3e50; font-weight: bold; cursor: text; }
-        #api-status { font-size: 11px; color: #f39c12; margin-top: 2px; position: absolute; bottom: -16px; white-space: nowrap; }
+        #api-status { font-size: 12px; color: #f39c12; margin-top: 2px; position: absolute; bottom: -18px; white-space: nowrap; }
 
-        .button { padding: 8px 12px; font-size: 13px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; height: 32px; display: flex; align-items: center; justify-content: center; white-space: nowrap;}
-        .btn-calc { background-color: #27ae60; font-size: 14px; padding: 10px 15px;}
+        .button { padding: 10px 16px; font-size: 15px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; min-height: 44px; display: flex; align-items: center; justify-content: center; white-space: nowrap; box-sizing: border-box;}
+        .btn-calc { background-color: #27ae60; font-size: 16px; padding: 12px 20px; width: 100%; max-width: 250px;}
         .btn-calc:hover { background-color: #2ecc71; }
         .btn-clear { background-color: #e74c3c; }
         .btn-clear:hover { background-color: #c0392b; }
         .btn-save { background-color: #2980b9; }
         .btn-save:hover { background-color: #3498db; }
         
-        .btn-history { background-color: #f39c12; width: 35px; padding: 0; font-size: 14px; }
+        .btn-history { background-color: #f39c12; width: 44px; min-width: 44px; padding: 0; font-size: 18px; }
         .btn-history:hover { background-color: #d35400; }
 
         #ergebnis-box {
             width: 100%; background-color: #34495e;
-            padding: 15px; margin-top: 5px; border-radius: 5px; display: none; 
+            padding: 12px; margin-top: 5px; border-radius: 6px; display: none; 
             flex-direction: column; align-items: center; box-sizing: border-box;
         }
         .ergebnis-container {
             display: flex; justify-content: space-between; width: 100%; max-width: 1000px; flex-wrap: wrap; gap: 10px;
         }
         .ergebnis-spalte {
-            display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 180px;
+            display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 150px;
         }
-        .ergebnis-spalte h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; text-align: center;}
-        .ergebnis-spalte h2 { margin: 5px 0; font-size: 16px; font-weight: normal; text-align: center; white-space: nowrap;}
-        .ergebnis-spalte span { font-weight: bold; font-size: 22px; }
+        .ergebnis-spalte h3 { margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; text-align: center;}
+        .ergebnis-spalte h2 { margin: 3px 0; font-size: 15px; font-weight: normal; text-align: center; white-space: nowrap;}
+        .ergebnis-spalte span { font-weight: bold; font-size: 20px; }
         
-        .laengen-info { font-size: 14px; color: #bdc3c7; margin-top: -3px; margin-bottom: 5px; font-weight: bold; text-align: center;}
-        .laengen-info span { font-size: 16px; }
+        .laengen-info { font-size: 13px; color: #bdc3c7; margin-top: -2px; margin-bottom: 3px; font-weight: bold; text-align: center;}
+        .laengen-info span { font-size: 15px; }
         
         .rahmen-links { border-left: 2px solid #7f8c8d; }
         
         @media (max-width: 800px) {
-            .rahmen-links { border-left: none; border-top: 2px solid #7f8c8d; padding-top: 10px;}
+            .rahmen-links { border-left: none; border-top: 2px solid #7f8c8d; padding-top: 8px;}
         }
+
+        /* Aufklappbare Bereiche */
+        .klapp-wrapper {
+            width: 100%; max-width: 1000px; margin-top: 6px; display: none; flex-direction: column; box-sizing: border-box;
+        }
+        .klapp-btn {
+            background-color: #16a085; color: white; width: 100%; padding: 10px; font-size: 13px; 
+            font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+            min-height: 40px; display: flex; align-items: center; justify-content: center;
+        }
+        .klapp-btn:hover { background-color: #1abc9c; }
+
+        .klapp-inhalt {
+            background-color: #2c3e50; border: 1px solid #16a085; border-top: none;
+            padding: 10px; border-radius: 0 0 6px 6px; display: none; flex-direction: column; gap: 8px; box-sizing: border-box;
+        }
+        .pumpe-slider-zeile {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; background: rgba(0,0,0,0.15); padding: 6px 10px; border-radius: 4px;
+        }
+        .pumpe-slider-zeile input[type=range] {
+            flex: 1; accent-color: #e74c3c; height: 8px; cursor: pointer; min-height: unset; padding: 0;
+        }
+
+        /* Pendelverkehr Konfigurator Styles */
+        .pv-zeile {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(0,0,0,0.15); padding: 8px 10px; border-radius: 4px; font-size: 13px;
+        }
+        .pv-zeile input { width: 70px; min-height: 36px; padding: 4px; text-align: center; }
 
         #druck-warnung-box {
             width: 100%; max-width: 1000px; background-color: #e74c3c; color: white;
-            padding: 12px; margin-top: 10px; border-radius: 5px; display: none;
-            text-align: center; font-weight: bold; font-size: 14px;
-            animation: blinken 2s infinite; box-sizing: border-box; line-height: 1.4;
-        }
-        @keyframes blinken {
-            0% { background-color: #e74c3c; }
-            50% { background-color: #c0392b; }
-            100% { background-color: #e74c3c; }
+            padding: 10px; margin-top: 8px; border-radius: 6px; display: none;
+            text-align: center; font-weight: bold; font-size: 13px;
+            box-sizing: border-box; line-height: 1.4;
         }
 
         #koordinaten-box {
             display: none; width: 100%; max-width: 1000px; 
-            margin-top: 10px; flex-direction: column; align-items: center; box-sizing: border-box;
+            margin-top: 8px; flex-direction: column; align-items: center; box-sizing: border-box;
         }
         
         .koordinaten-steuerung {
             display: flex; width: 100%; gap: 5px;
         }
         #toggleKoorBtn {
-            background-color: #34495e; flex: 1; font-size: 13px; color: #f1c40f; 
-            padding: 10px; text-transform: uppercase; letter-spacing: 1px;
-            border-radius: 5px 0 0 5px; cursor: pointer; border: none; font-weight: bold;
-            transition: all 0.2s ease;
+            background-color: #34495e; flex: 1; font-size: 14px; color: #f1c40f; 
+            padding: 12px; text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 6px 0 0 6px; cursor: pointer; border: none; font-weight: bold; min-height: 44px;
         }
-        #toggleKoorBtn:hover { background-color: #2c3e50; }
-        
         #printKoorBtn {
-            background-color: #2980b9; color: white; padding: 10px 15px; 
-            font-size: 13px; border-radius: 0 5px 5px 0; border: none; cursor: pointer;
-            font-weight: bold; white-space: nowrap;
+            background-color: #2980b9; color: white; padding: 12px 18px; 
+            font-size: 14px; border-radius: 0 6px 6px 0; border: none; cursor: pointer;
+            font-weight: bold; white-space: nowrap; min-height: 44px;
         }
-        #printKoorBtn:hover { background-color: #3498db; }
         
         #koordinaten-liste {
-            display: none; width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 13px; 
-            background: #2c3e50; padding: 15px; border-radius: 0 0 5px 5px; 
+            display: none; width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 12px; 
+            background: #2c3e50; padding: 12px; border-radius: 0 0 6px 6px; 
             overflow-x: auto; color: white; margin-top: 2px; box-sizing: border-box;
         }
 
         #druck-meta-titel, #druck-parameter-box { display: none; }
 
-        /* OPTIMIERTE DIN A4 VERTIKAL (MIT ERHÖHTER SCHRIFTGRÖSSE FÜR PARAMETER & TABELLE) */
-        @page {
-            size: A4 portrait;
-            margin: 8mm;
-        }
+        /* DIN A4 Druckansicht */
+        @page { size: A4 portrait; margin: 8mm; }
         @media print {
             html, body { background: white !important; color: black !important; display: block; height: 100%; margin: 0; padding: 0; }
             #map { height: 360px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; }
             #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; }
-            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container { display: none !important; }
-            #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; page-break-inside: avoid; }
-            #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; page-break-inside: avoid; }
-            #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; } /* Erhöht um ca. 2pt */
+            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container { display: none !important; }
+            #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
+            #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
+            #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; }
             #druck-meta-titel { display: block !important; font-size: 15px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 3px; width: 100%; }
-            #druck-parameter-box { display: block !important; font-size: 13px !important; margin-bottom: 5px; border: 1px solid #7f8c8d; padding: 5px; width: 100%; background: #fdfdfd !important; } /* Erhöht um ca. 2pt */
+            #druck-parameter-box { display: block !important; font-size: 13px !important; margin-bottom: 5px; border: 1px solid #7f8c8d; padding: 5px; width: 100%; background: #fdfdfd !important; } 
             .ergebnis-spalte h3 { color: #000 !important; font-size: 10px !important; margin: 0 0 2px 0 !important; }
             .ergebnis-spalte h2 { color: #000 !important; font-size: 11px !important; margin: 1px 0 !important; }
             .ergebnis-spalte span { color: #000 !important; font-size: 13px !important; }
             .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
-            table { font-size: 14px !important; width: 100% !important; } /* Erhöht um ca. 2pt */
+            table { font-size: 14px !important; width: 100% !important; } 
             th, td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
         }
 
         .leaflet-control-gps {
-            background: #fff; width: 34px; height: 34px; line-height: 34px;
-            text-align: center; font-size: 18px; font-weight: bold; cursor: pointer;
-            border-radius: 4px; box-shadow: 0 1px 5px rgba(0,0,0,0.6);
+            background: #fff; width: 44px; height: 44px; line-height: 44px;
+            text-align: center; font-size: 20px; font-weight: bold; cursor: pointer;
+            border-radius: 6px; box-shadow: 0 1px 5px rgba(0,0,0,0.6);
             color: #2980b9; display: flex; align-items: center; justify-content: center;
         }
         .leaflet-control-gps:hover { background: #f4f4f4; color: #3498db; }
 
-        .icon-wasser { background-color: #3498db; border: 2px solid white; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        .icon-ts { background-color: #e74c3c; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
-        .icon-verteiler { background-color: #c0392b; border: 2px solid white; border-radius: 2px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .icon-wasser { background-color: #3498db; border: 2px solid white; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 13px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .icon-ts { background-color: #e74c3c; border: 2px solid white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 11px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
+        .icon-verteiler { background-color: #c0392b; border: 2px solid white; border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -169,7 +184,7 @@
             <strong>Parameter:</strong> <span id="druckParamText"></span>
         </div>
 
-        <button id="toggleSpeicherBtn" class="button" style="background-color: #34495e; width: 100%; max-width: 1000px; padding: 5px; font-size: 12px; height: 24px;" onclick="toggleSpeicher()">💾 Speichermenü einblenden ▼</button>
+        <button id="toggleSpeicherBtn" class="button" style="background-color: #34495e; width: 100%; max-width: 1000px; padding: 6px; font-size: 13px; min-height: 36px;" onclick="toggleSpeicher()">💾 Speichermenü einblenden ▼</button>
 
         <div id="speicher-leiste" style="display: none;">
             <div class="eingabe-gruppe">
@@ -178,8 +193,6 @@
             </div>
             <button class="button btn-save" onclick="streckeSpeichern()">💾 Speichern</button>
             
-            <div style="width: 20px;"></div>
-
             <div class="eingabe-gruppe">
                 <label>Gespeicherte Strecken:</label>
                 <select id="gespeicherteStreckenSelect">
@@ -187,36 +200,36 @@
                 </select>
             </div>
             <button class="button btn-save" onclick="streckeLaden()">📂 Laden</button>
-            <button class="button btn-clear" onclick="streckeAusSpeicherLoeschen()" title="Gewählte Strecke löschen">🗑️</button>
+            <button class="button btn-clear" onclick="streckeAusSpeicherLoeschen()" title="Löschen">🗑️</button>
         </div>
 
         <div id="eingabe-leiste">
-            <div class="eingabe-gruppe">
-                <strong>Strecke:</strong>
-                <span id="distanzAnzeige" style="font-size: 18px; margin-top: 5px; display: inline-block; min-width: 60px;">0 m</span>
+            <div class="eingabe-gruppe" style="min-width: 80px; flex: 0 0 auto;">
+                <label>Strecke:</label>
+                <span id="distanzAnzeige" style="font-size: 18px; margin-top: 8px; display: inline-block;">0 m</span>
             </div>
             
-            <div class="eingabe-gruppe">
-                <label title="Höhenmeter manuell eintragen bei API-Fehler">Höhe (Ziel):</label>
-                <input type="text" id="hoehenInput" value="0 m">
+            <div class="eingabe-gruppe" style="min-width: 90px; flex: 0 0 auto;">
+                <label title="Höhenunterschied">Höhe (Ziel):</label>
+                <input type="text" id="hoehenInput" value="0 m" readonly>
                 <span id="api-status"></span>
             </div>
 
             <div class="eingabe-gruppe">
                 <label>Volumenstrom [l/min]:</label>
-                <select id="volumenInput">
+                <select id="volumenInput" onchange="berechnePendelverkehr()">
                     <option value="400">400</option>
                     <option value="600">600</option>
                     <option value="800" selected>800</option>
                     <option value="1000">1000</option>
-                    <option value="1200">1200</option>
-                    <option value="1400">1400 (mind. FPN 10-2000)</option>
-                    <option value="1600">1600 (mind. FPN 10-2000)</option>
-                    <option value="1800">1800 (mind. FPN 10-2000)</option>
-                    <option value="2000">2000 (mind. FPN 10-2000)</option>
+                    <option value="1200">1200 (FPN 10-1500)</option>
+                    <option value="1400">1400 (FPN 10-1500)</option>
+                    <option value="1600">1600 (FPN 10-2000)</option>
+                    <option value="1800">1800 (FPN 10-2000)</option>
+                    <option value="2000">2000 (FPN 10-2000)</option>
                 </select>
             </div>
-            <div class="eingabe-gruppe">
+            <div class="eingabe-gruppe" style="min-width: 90px;">
                 <label>Leitung:</label>
                 <select id="leitungsartInput">
                     <option value="1" selected>Einfach</option>
@@ -224,25 +237,27 @@
                 </select>
             </div>
 
-            <div class="eingabe-gruppe">
-                <label title="0.0 = Offenes Gewässer">Entnahme [bar]:</label>
+            <div class="eingabe-gruppe" style="min-width: 90px;">
+                <label>Entnahme [bar]:</label>
                 <input type="number" id="entnahmeInput" value="0.0" step="0.5" min="0" max="10">
             </div>
-            <div class="eingabe-gruppe">
-                <label title="Druck am Ausgang der TS">Ausgang [bar]:</label>
+            <div class="eingabe-gruppe" style="min-width: 90px;">
+                <label>Ausgang [bar]:</label>
                 <input type="number" id="ausgangsdruckInput" value="10.0" step="0.5" min="0" max="15">
             </div>
-            <div class="eingabe-gruppe">
-                <label title="Mindestdruck für Zwischenpumpen">Eingang [bar]:</label>
+            <div class="eingabe-gruppe" style="min-width: 90px;">
+                <label>Eingang [bar]:</label>
                 <input type="number" id="eingangsdruckInput" value="1.5" step="0.1" min="0" max="5">
             </div>
-            <div class="eingabe-gruppe">
-                <label title="Benötigter Druck am Verteiler">Ziel [bar]:</label>
+            <div class="eingabe-gruppe" style="min-width: 90px;">
+                <label>Ziel [bar]:</label>
                 <input type="number" id="zieldruckInput" value="5.0" step="0.5" min="0" max="10">
             </div>
 
-            <button class="button btn-history" onclick="punktRueckgaengig()" title="Letzten Klick entfernen">↩️</button>
-            <button class="button btn-history" onclick="punktWiederherstellen()" title="Entfernten Klick wiederherstellen">↪️</button>
+            <div style="display: flex; gap: 8px;">
+                <button class="button btn-history" onclick="punktRueckgaengig()" title="Letzten Klick entfernen">↩️</button>
+                <button class="button btn-history" onclick="punktWiederherstellen()" title="Wiederherstellen">↪️</button>
+            </div>
 
             <button class="button btn-calc" onclick="auswerten()">Berechnen</button>
             <button class="button btn-clear" onclick="streckeLoeschen()">Neu</button>
@@ -250,41 +265,85 @@
 
         <div id="druck-warnung-box">
             ⚠️ ACHTUNG: Der maximale Ruhedruck in einer Senke überschreitet <span id="warnDruckWert">12.0</span> bar! <br>
-            Kritischer Bereich für Standard-B-Schläuche bei Schließen des Verteilers. Höchster berechneter Ruhedruck: <span id="maxRuhedruckAnzeige">0</span> bar.
+            Höchster berechneter Ruhedruck: <span id="maxRuhedruckAnzeige">0</span> bar.
         </div>
 
         <div id="ergebnis-box">
             <div class="ergebnis-container">
                 <div class="ergebnis-spalte">
                     <h3 style="color: #2ecc71;">Einsatzmaterial</h3>
-                    <h2 style="color: white;">Pumpen: <span id="pumpenAnzeige">0</span></h2>
-                    <h2 style="color: white;">B-Schläuche: <span id="schlauchAnzeige">0</span> Stück</h2>
+                    <h2>Pumpen: <span id="pumpenAnzeige">0</span></h2>
+                    <h2>B-Schläuche: <span id="schlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info">(Länge: <span id="laengeAnzeige">0</span> m)</div>
                 </div>
                 
                 <div class="ergebnis-spalte rahmen-links">
                     <h3 style="color: #e67e22;">Ausfallreserve</h3>
-                    <h2 style="color: white;">Pumpen: <span id="reservePumpenAnzeige">0</span></h2>
-                    <h2 style="color: white;">B-Schläuche: <span id="reserveSchlauchAnzeige">0</span> Stück</h2>
+                    <h2>Pumpen: <span id="reservePumpenAnzeige">0</span></h2>
+                    <h2>B-Schläuche: <span id="reserveSchlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info">(Länge: <span id="reserveLaengeAnzeige">0</span> m)</div>
                 </div>
 
                 <div class="ergebnis-spalte rahmen-links">
                     <h3 style="color: #3498db;">Gesamtbedarf</h3>
-                    <h2 style="color: white;">Pumpen: <span id="gesamtPumpenAnzeige">0</span></h2>
-                    <h2 style="color: white;">B-Schläuche: <span id="gesamtSchlauchAnzeige">0</span> Stück</h2>
+                    <h2>Pumpen: <span id="gesamtPumpenAnzeige">0</span></h2>
+                    <h2>B-Schläuche: <span id="gesamtSchlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info" style="color: #3498db;">(Länge: <span id="gesamtLaengeAnzeige">0</span> m)</div>
                 </div>
 
                 <div class="ergebnis-spalte rahmen-links">
                     <h3 style="color: #9b59b6;">Pendelverkehr</h3>
-                    <h2 style="color: white;">TLF 4000: <span id="tlfAnzeige">0</span></h2>
-                    <div class="laengen-info" style="color: #9b59b6;">(Alternative)</div>
+                    <h2>TLF 4000: <span id="tlfAnzeige">0</span> Stück</h2>
+                    <div class="laengen-info" style="color: #9b59b6;">(bei v = 30 km/h)</div>
                 </div>
             </div>
-            <p style="margin: 15px 0 0 0; font-size: 13px; color: #bdc3c7; text-align: center;">
-                (Gesamtdruckbedarf der reinen Strecke: <span id="druckbedarfAnzeige">0</span> bar)
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #bdc3c7; text-align: center;">
+                (Gesamtdruckbedarf reine Strecke: <span id="druckbedarfAnzeige">0</span> bar)
             </p>
+        </div>
+
+        <div id="feintuning-wrapper" class="klapp-wrapper">
+            <button id="feintuning-toggle-btn" class="klapp-btn" onclick="toggleBereich('feintuning-box', this, '🎛️ Pumpen-Standorte feinjustieren (optional)')">🎛️ Pumpen-Standorte feinjustieren (optional) ▼</button>
+            <div id="feintuning-box" class="klapp-inhalt">
+                <div style="font-size: 11px; color: #bdc3c7; margin-bottom: 2px;">Pumpe kann nur in Richtung Entnahme (verkürzt) verschoben werden:</div>
+                <div id="slider-container" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+            </div>
+        </div>
+
+        <div id="pendelverkehr-wrapper" class="klapp-wrapper">
+            <button id="pendelverkehr-toggle-btn" class="klapp-btn" style="background-color: #8e44ad;" onclick="toggleBereich('pendelverkehr-box', this, '🚒 Pendelverkehr-Logistik')">🚒 Pendelverkehr-Logistik▼</button>
+            <div id="pendelverkehr-box" class="klapp-inhalt" style="border-color: #8e44ad;">
+                <div style="font-size: 11px; color: #bdc3c7; margin-bottom: 4px;">Fahrzeuge & Parameter nach HLFS-Lernunterlage (v = 30 km/h, Rüstzeit = 2 min):</div>
+                <div class="pv-zeile">
+                    <span>TLF 4000 (4.000 l Tank):</span>
+                    <input type="number" id="pv_tlf4000" value="0" min="0" max="10" oninput="berechnePendelverkehr()">
+                </div>
+                <div class="pv-zeile">
+                    <span>HLF / LF 20 (2.000 l Tank):</span>
+                    <input type="number" id="pv_hlf20" value="0" min="0" max="10" oninput="berechnePendelverkehr()">
+                </div>
+                <div class="pv-zeile">
+                    <span>TLF 3000 (3.000 l Tank):</span>
+                    <input type="number" id="pv_tlf3000" value="0" min="0" max="10" oninput="berechnePendelverkehr()">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 4px;">
+                    <div class="eingabe-gruppe" style="font-size: 12px;">
+                        <label style="font-size: 11px;">Füllleistung [l/min]:</label>
+                        <input type="number" id="pv_qfuell" value="800" step="100" min="200" max="3000" oninput="berechnePendelverkehr()" style="min-height: 36px; padding: 6px; font-size: 14px;">
+                    </div>
+                    <div class="eingabe-gruppe" style="font-size: 12px;">
+                        <label style="font-size: 11px;">Abgabeleistung [l/min]:</label>
+                        <input type="number" id="pv_qabgabe" value="400" step="100" min="200" max="2000" oninput="berechnePendelverkehr()" style="min-height: 36px; padding: 6px; font-size: 14px;">
+                    </div>
+                    <div class="eingabe-gruppe" style="font-size: 12px;">
+                        <label style="font-size: 11px;">Geschwindigkeit [km/h]:</label>
+                        <input type="number" id="pv_v" value="30" step="5" min="10" max="60" oninput="berechnePendelverkehr()" style="min-height: 36px; padding: 6px; font-size: 14px;">
+                    </div>
+                </div>
+                <div id="pv-ergebnis-anzeige" style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; font-size: 13px; margin-top: 4px; line-height: 1.4;">
+                    <i>Bitte Strecke zeichnen und Fahrzeuge angeben...</i>
+                </div>
+            </div>
         </div>
 
         <div id="koordinaten-box">
@@ -304,18 +363,13 @@
             let zone = Math.floor((lon + 180) / 6) + 1;
             let projString = `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
             let utm = proj4(projString, [lon, lat]);
-            
             let letters = "CDEFGHJKLMNPQRSTUVWXX";
             let band = letters.charAt(Math.floor((lat + 80) / 8));
             if (lat >= 72 && lat < 84) band = 'X';
-            
-            let easting = Math.round(utm[0]).toString().padStart(6, '0');
-            let northing = Math.round(utm[1]).toString().padStart(7, '0');
-            
             return {
                 zone: `${zone}${band}`,
-                ostwert: easting,
-                nordwert: northing
+                ostwert: Math.round(utm[0]).toString().padStart(6, '0'),
+                nordwert: Math.round(utm[1]).toString().padStart(7, '0')
             };
         }
 
@@ -325,21 +379,30 @@
             if (liste.style.display === 'none' || liste.style.display === '') {
                 liste.style.display = 'block';
                 btn.innerHTML = '📍 Standort-Koordinaten (UTM WGS84) ausblenden ▲';
-                btn.style.borderRadius = '5px 0 0 0';
             } else {
                 liste.style.display = 'none';
                 btn.innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
-                btn.style.borderRadius = '5px 0 0 5px';
             }
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+        function toggleBereich(boxId, btnElement, basisTitel) {
+            var box = document.getElementById(boxId);
+            if (box.style.display === 'none' || box.style.display === '') {
+                box.style.display = 'flex';
+                btnElement.innerHTML = basisTitel + ' ▲';
+            } else {
+                box.style.display = 'none';
+                btnElement.innerHTML = basisTitel + ' ▼';
+            }
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         function drucken() {
             let streckenName = document.getElementById('streckenNameInput').value.trim();
             document.getElementById('druckStreckenName').innerText = "Strecke: " + (streckenName !== "" ? streckenName : "Unbenannt");
-            
             let jetzt = new Date();
-            let datumStr = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('druckDatumUhrzeit').innerText = datumStr;
+            document.getElementById('druckDatumUhrzeit').innerText = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
 
             let vol = document.getElementById('volumenInput').selectedOptions[0].text;
             let leit = document.getElementById('leitungsartInput').selectedOptions[0].text;
@@ -355,38 +418,44 @@
 
             document.getElementById('koordinaten-liste').style.display = 'block';
 
+            let mapContainer = document.getElementById('map');
+            mapContainer.style.width = '730px'; 
+            mapContainer.style.height = '360px'; 
+            mapContainer.style.flex = 'none';
+            mapContainer.style.minHeight = 'unset';
+
             if (punkteListe.length >= 2) {
                 map.invalidateSize();
-                map.fitBounds(schlauchleitung.getBounds(), { padding: [40, 40] });
+                map.fitBounds(schlauchleitung.getBounds(), { padding: [30, 30], animate: false });
             }
 
             setTimeout(function() {
                 window.print();
-            }, 1200);
+                setTimeout(function() {
+                    mapContainer.style.width = '';
+                    mapContainer.style.height = '';
+                    mapContainer.style.flex = '';
+                    mapContainer.style.minHeight = '';
+                    map.invalidateSize();
+                    if (punkteListe.length >= 2) {
+                        map.fitBounds(schlauchleitung.getBounds(), { padding: [40, 40] });
+                    }
+                }, 500);
+            }, 1500);
         }
 
         var map = L.map('map').setView([50.2925, 8.8142], 14);
-        
-        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 
         var ofmLayer = L.layerGroup();
         var ladeTimeout = null;
-
         var overpassMirrors = [
             "https://overpass-api.de/api/interpreter",
             "https://overpass.kumi.systems/api/interpreter",
             "https://lz4.overpass-api.de/api/interpreter"
         ];
 
-        map.on('overlayadd', function(e) {
-            if (e.layer === ofmLayer) { 
-                ladeHydranten(); 
-            }
-        });
-        
+        map.on('overlayadd', function(e) { if (e.layer === ofmLayer) ladeHydranten(); });
         map.on('moveend', function() {
             if (map.hasLayer(ofmLayer)) { 
                 clearTimeout(ladeTimeout);
@@ -396,68 +465,42 @@
 
         async function ladeHydranten() {
             let statusText = document.getElementById('api-status');
-            
             if (map.getZoom() < 14) {
                 ofmLayer.clearLayers();
-                statusText.innerText = "⚠️ Bitte zoomen (ab Stufe 14) für Hydranten";
+                statusText.innerText = "⚠️ Bitte zoomen (ab Stufe 14)";
                 return;
             }
-            
             statusText.innerText = "⏳ Lade Hydranten...";
-            
             var bounds = map.getBounds();
             var bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-            
             var query = `[out:json][timeout:15];(node["emergency"="fire_hydrant"](${bbox});node["emergency"="suction_point"](${bbox});node["emergency"="water_tank"](${bbox}););out;`;
 
             for (let i = 0; i < overpassMirrors.length; i++) {
-                var url = overpassMirrors[i] + "?data=" + encodeURIComponent(query);
                 try {
-                    let response = await fetch(url);
-                    if (!response.ok) throw new Error("HTTP-Fehler: " + response.status);
-
+                    let response = await fetch(overpassMirrors[i] + "?data=" + encodeURIComponent(query));
+                    if (!response.ok) throw new Error();
                     let data = await response.json();
                     ofmLayer.clearLayers();
-
                     if (!data.elements || data.elements.length === 0) {
-                        statusText.innerText = "✅ Keine Entnahmestellen im Ausschnitt";
+                        statusText.innerText = "✅ Keine Entnahmestellen";
                         return;
                     }
-
                     data.elements.forEach(function(node) {
                         var isSuction = node.tags && node.tags['emergency'] === 'suction_point';
                         var isTank = node.tags && node.tags['emergency'] === 'water_tank';
-
-                        var titel = isSuction ? "Saugstelle" : (isTank ? "Löschwasserbehälter" : "Hydrant");
                         var farbe = isSuction || isTank ? "#3498db" : "#e74c3c";
-
-                        var popupText = `<b>${titel}</b><br>`;
-                        if(node.tags) {
-                            if(node.tags['fire_hydrant:type']) popupText += "Typ: " + node.tags['fire_hydrant:type'] + "<br>";
-                            if(node.tags['fire_hydrant:diameter']) popupText += "Rohr: DN " + node.tags['fire_hydrant:diameter'] + "<br>";
-                            if(node.tags['ref']) popupText += "Nr: " + node.tags['ref'] + "<br>";
-                            if(node.tags['water_source']) popupText += "Quelle: " + node.tags['water_source'] + "<br>";
-                        }
-
                         var hIcon = L.divIcon({
                             className: '',
                             html: `<div style="background-color: ${farbe}; border: 2px solid white; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.8);"></div>`,
-                            iconSize: [16, 16],
-                            iconAnchor: [8, 8]
+                            iconSize: [16, 16], iconAnchor: [8, 8]
                         });
-
-                        L.marker([node.lat, node.lon], {icon: hIcon}).bindPopup(popupText).addTo(ofmLayer);
+                        L.marker([node.lat, node.lon], {icon: hIcon}).bindPopup(`<b>${isSuction?'Saugstelle':isTank?'Behälter':'Hydrant'}</b>`).addTo(ofmLayer);
                     });
-
-                    statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen (${overpassMirrors[i].replace('https://','').split('/')[0]})`;
+                    statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen`;
                     return; 
-
-                } catch (err) {
-                    console.warn("Overpass-Mirror nicht erreichbar (" + overpassMirrors[i] + "):", err);
-                }
+                } catch (err) {}
             }
-
-            statusText.innerText = "❌ Kein Overpass-Server erreichbar (Netzwerk/Firewall prüfen)";
+            statusText.innerText = "❌ Fehler beim Laden";
         }
 
         var baseMaps = { "Standard Karte": osmLayer };
@@ -492,21 +535,15 @@
 
         map.on('locationfound', function(e) {
             var meinStandort = e.latlng;
-            L.circle(meinStandort, { radius: e.accuracy / 2, color: '#3498db', fillColor: '#3498db', fillOpacity: 0.15 }).addTo(knotenpunkteLayer);
-            L.circleMarker(meinStandort, { radius: 6, color: '#fff', weight: 2, fillColor: '#3498db', fillOpacity: 1 }).addTo(knotenpunkteLayer);
+            L.circle(meinStandort, { radius: e.accuracy / 2, color: '#3498db', fillOpacity: 0.15 }).addTo(knotenpunkteLayer);
             handleNeuerPunkt(meinStandort);
         });
-
-        map.on('locationerror', function(e) {
-            alert("Standort konnte nicht ermittelt werden. Fehler: " + e.message);
-        });
-
-        map.on('click', function(ereignis) { handleNeuerPunkt(ereignis.latlng); });
+        map.on('click', function(e) { handleNeuerPunkt(e.latlng); });
 
         function handleNeuerPunkt(neueKoordinate, isRedo = false) {
             var marker = L.circleMarker(neueKoordinate, {radius: 4, color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 1}).addTo(knotenpunkteLayer);
             markerListe.push(marker);
-            if (!isRedo) { geloeschtePunkteListe = []; }
+            if (!isRedo) geloeschtePunkteListe = [];
             punkteListe.push(neueKoordinate);
             schlauchleitung.setLatLngs(punkteListe);
             aktualisiereDistanz();
@@ -514,43 +551,37 @@
 
         function punktRueckgaengig() {
             if (punkteListe.length === 0) return;
-            let popperPunkt = punkteListe.pop();
-            geloeschtePunkteListe.push(popperPunkt); 
-            let popperMarker = markerListe.pop();
-            knotenpunkteLayer.removeLayer(popperMarker);
+            geloeschtePunkteListe.push(punkteListe.pop());
+            knotenpunkteLayer.removeLayer(markerListe.pop());
             schlauchleitung.setLatLngs(punkteListe);
             aktualisiereDistanz();
         }
 
         function punktWiederherstellen() {
             if (geloeschtePunkteListe.length === 0) return;
-            let wiederhergestellterPunkt = geloeschtePunkteListe.pop();
-            handleNeuerPunkt(wiederhergestellterPunkt, true); 
+            handleNeuerPunkt(geloeschtePunkteListe.pop(), true);
         }
 
         function aktualisiereDistanz() {
             gesamtDistanz = 0;
-            for (let i = 1; i < punkteListe.length; i++) {
-                gesamtDistanz += punkteListe[i-1].distanceTo(punkteListe[i]);
-            }
+            for (let i = 1; i < punkteListe.length; i++) gesamtDistanz += punkteListe[i-1].distanceTo(punkteListe[i]);
             document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
             document.getElementById('ergebnis-box').style.display = 'none';
+            document.getElementById('feintuning-wrapper').style.display = 'none';
+            document.getElementById('feintuning-box').style.display = 'none';
+            document.getElementById('pendelverkehr-wrapper').style.display = 'none';
+            document.getElementById('pendelverkehr-box').style.display = 'none';
             document.getElementById('druck-warnung-box').style.display = 'none';
             document.getElementById('koordinaten-box').style.display = 'none';
             document.getElementById('api-status').innerText = "";
             symboleLayer.clearLayers(); 
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         function toggleSpeicher() {
             var leiste = document.getElementById('speicher-leiste');
-            var btn = document.getElementById('toggleSpeicherBtn');
-            if (leiste.style.display === 'none') {
-                leiste.style.display = 'flex';
-                btn.innerHTML = '💾 Speichermenü ausblenden ▲';
-            } else {
-                leiste.style.display = 'none';
-                btn.innerHTML = '💾 Speichermenü einblenden ▼';
-            }
+            leiste.style.display = leiste.style.display === 'none' ? 'flex' : 'none';
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         window.onload = function() { aktualisiereSpeicherDropdown(); };
@@ -560,19 +591,18 @@
             let select = document.getElementById('gespeicherteStreckenSelect');
             select.innerHTML = '<option value="">-- Keine gewählt --</option>';
             for (let name in gespeicherteStrecken) {
-                let option = document.createElement('option'); option.value = name; option.innerText = name; select.appendChild(option);
+                let opt = document.createElement('option'); opt.value = name; opt.innerText = name; select.appendChild(opt);
             }
         }
 
         function streckeSpeichern() {
             let name = document.getElementById('streckenNameInput').value.trim();
-            if (name === "" || punkteListe.length < 2) { alert("Name fehlt oder keine Strecke gezeichnet."); return; }
+            if (name === "" || punkteListe.length < 2) { alert("Name fehlt oder keine Strecke."); return; }
             let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
             gespeicherteStrecken[name] = punkteListe;
             localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
             aktualisiereSpeicherDropdown();
-            document.getElementById('gespeicherteStreckenSelect').value = name;
-            alert("Strecke erfolgreich gespeichert!");
+            alert("Gespeichert!");
         }
 
         function streckeLaden() {
@@ -580,20 +610,20 @@
             let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
             let geladenePunkte = gespeicherteStrecken[name];
             if (geladenePunkte && geladenePunkte.length > 0) {
-                streckeLoeschen(false); document.getElementById('streckenNameInput').value = name;
-                geladenePunkte.forEach(p => {
-                    let koordinate = L.latLng(p.lat, p.lng);
-                    handleNeuerPunkt(koordinate, true);
-                });
+                streckeLoeschen(false);
+                document.getElementById('streckenNameInput').value = name;
+                geladenePunkte.forEach(p => handleNeuerPunkt(L.latLng(p.lat, p.lng), true));
                 map.fitBounds(schlauchleitung.getBounds());
             }
         }
 
         function streckeAusSpeicherLoeschen() {
             let name = document.getElementById('gespeicherteStreckenSelect').value; if (name === "") return;
-            if(confirm("Strecke wirklich löschen?")) {
-                let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}'); delete gespeicherteStrecken[name];
-                localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken)); aktualisiereSpeicherDropdown();
+            if(confirm("Strecke löschen?")) {
+                let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+                delete gespeicherteStrecken[name];
+                localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
+                aktualisiereSpeicherDropdown();
                 document.getElementById('streckenNameInput').value = "";
             }
         }
@@ -603,15 +633,15 @@
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
             document.getElementById('distanzAnzeige').innerText = '0 m';
             document.getElementById('ergebnis-box').style.display = 'none';
+            document.getElementById('feintuning-wrapper').style.display = 'none';
+            document.getElementById('feintuning-box').style.display = 'none';
+            document.getElementById('pendelverkehr-wrapper').style.display = 'none';
+            document.getElementById('pendelverkehr-box').style.display = 'none';
             document.getElementById('druck-warnung-box').style.display = 'none';
-            
             document.getElementById('koordinaten-box').style.display = 'none';
-            document.getElementById('koordinaten-liste').style.display = 'none';
-            document.getElementById('toggleKoorBtn').innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
-            document.getElementById('toggleKoorBtn').style.borderRadius = '5px 0 0 5px';
-            
-            document.getElementById('hoehenInput').value = "0 m"; document.getElementById('api-status').innerText = "";
+            document.getElementById('hoehenInput').value = "0 m";
             if(allesLeeren) { document.getElementById('streckenNameInput').value = ""; document.getElementById('gespeicherteStreckenSelect').value = ""; }
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         function interpoliereStrecke(punkte, intervall = 50) {
@@ -619,8 +649,8 @@
             for (let i = 0; i < punkte.length - 1; i++) {
                 let p1 = punkte[i]; let p2 = punkte[i+1]; let distanz = p1.distanceTo(p2);
                 if (distanz > intervall) {
-                    let anzahlSchritte = Math.floor(distanz / intervall);
-                    for (let j = 1; j <= anzahlSchritte; j++) {
+                    let schritte = Math.floor(distanz / intervall);
+                    for (let j = 1; j <= schritte; j++) {
                         let anteil = (j * intervall) / distanz;
                         dichtePunkte.push(L.latLng(p1.lat + (p2.lat - p1.lat) * anteil, p1.lng + (p2.lng - p1.lng) * anteil));
                     }
@@ -630,197 +660,253 @@
             return dichtePunkte;
         }
 
-        async function auswerten() {
+        let globaleDichtePunkte = [];
+        let globaleHoehen = [];
+        let automatischePumpenIndizes = [];
+
+        async function auswerten(manuelleVorgaben = null) {
             if (punkteListe.length < 2) { alert("Bitte zeichnen Sie eine Strecke."); return; }
             document.getElementById('api-status').innerText = "⏳ Lade API...";
             symboleLayer.clearLayers(); 
             document.getElementById('druck-warnung-box').style.display = 'none';
-            document.getElementById('koordinaten-box').style.display = 'none';
 
-            let dichtePunkte = interpoliereStrecke(punkteListe, 50);
-            let lats = []; let lons = [];
-            for (let i = 0; i < dichtePunkte.length; i++) {
-                lats.push(dichtePunkte[i].lat.toFixed(5)); lons.push(dichtePunkte[i].lng.toFixed(5));
-            }
+            if (!manuelleVorgaben) {
+                globaleDichtePunkte = interpoliereStrecke(punkteListe, 20);
+                let lats = globaleDichtePunkte.map(p => p.lat.toFixed(5));
+                let lons = globaleDichtePunkte.map(p => p.lng.toFixed(5));
+                let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
 
-            let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
-
-            try {
-                let response = await fetch(apiUrl); let data = await response.json();
-
-                if (data.elevation && data.elevation.length > 0) {
-                    let hoehen = data.elevation;
-                    
-                    let startHoehe = hoehen[0];
-                    let zielHoehe = hoehen[hoehen.length - 1];
-                    let nettoHoehenunterschied = zielHoehe - startHoehe;
-                    
-                    let vorzeichen = nettoHoehenunterschied > 0 ? "+" : "";
-                    document.getElementById('hoehenInput').value = vorzeichen + Math.round(nettoHoehenunterschied) + " m";
-                    document.getElementById('api-status').innerText = "✅ Geladen";
-
-                    let volumen = parseInt(document.getElementById('volumenInput').value);
-                    let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
-                    let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
-                    let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
-                    let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
-                    let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
-
-                    let berechnungsVolumen = volumen / leitungsart;
-                    
-                    const reibungstabelle = {
-                        200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
-                        600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
-                        1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50,
-                        1250: 2.70, 1300: 2.95, 1350: 3.15, 1400: 3.40, 1450: 3.65, 1500: 3.90, 1550: 4.20,
-                        1600: 4.45, 1650: 4.75, 1700: 5.05, 1750: 5.35, 1800: 5.65, 1850: 6.00, 1900: 6.30,
-                        1950: 6.65, 2000: 7.00
-                    };
-                    let reibungPro100m = reibungstabelle[berechnungsVolumen] || 1.1;
-
-                    let anzahlPumpen = 0;
-                    let ablaufDruck = pEntnahme;
-                    let gesamtDruckbedarf = 0;
-                    
-                    let maximalerRuhedruck = 0;
-                    let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
-                    let indexLetztePumpe = 0;
-
-                    let coordHtml = `
-                        <table style="width: 100%; border-collapse: collapse; font-family: 'Courier New', Courier, monospace;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid #7f8c8d; text-align: left;">
-                                    <th style="padding: 4px;">Standort</th>
-                                    <th style="padding: 4px;">Zone</th>
-                                    <th style="padding: 4px;">Ostwert</th>
-                                    <th style="padding: 4px;">Nordwert</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-
-                    L.marker(dichtePunkte[0], {icon: startIcon, title: "Wasserentnahme"}).addTo(symboleLayer);
-                    let utmStart = getUTM(dichtePunkte[0].lat, dichtePunkte[0].lng);
-                    coordHtml += `
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <td style="padding: 4px; color: #3498db; font-weight: bold;">Wasserentnahme</td>
-                            <td style="padding: 4px;">${utmStart.zone}</td>
-                            <td style="padding: 4px;">${utmStart.ostwert}</td>
-                            <td style="padding: 4px;">${utmStart.nordwert}</td>
-                        </tr>
-                    `;
-
-                    if (pEntnahme === 0) {
-                        speisenderDruckAktuell = pAusgang;
-                    }
-
-                    for (let i = 1; i < dichtePunkte.length; i++) {
-                        let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
-                        let hDiff = hoehen[i] - hoehen[i-1]; 
-                        
-                        let verlustFliesdruck = (dist / 100 * reibungPro100m) + (hDiff / 10);
-                        gesamtDruckbedarf += verlustFliesdruck;
-                        ablaufDruck -= verlustFliesdruck;
-
-                        let gefaelleEcht = hoehen[indexLetztePumpe] - hoehen[i];
-                        let ruhedruckAnPunkt = speisenderDruckAktuell + (gefaelleEcht / 10);
-                        
-                        if (ruhedruckAnPunkt > maximalerRuhedruck) {
-                            maximalerRuhedruck = ruhedruckAnPunkt;
-                        }
-
-                        if (ablaufDruck <= pEingang) {
-                            anzahlPumpen++;
-                            let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts">P${anzahlPumpen}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
-                            L.marker(dichtePunkte[i-1], {icon: pIcon, title: "Pumpe P" + anzahlPumpen}).addTo(symboleLayer);
-                            
-                            let utmP = getUTM(dichtePunkte[i-1].lat, dichtePunkte[i-1].lng);
-                            coordHtml += `
-                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                    <td style="padding: 4px; color: #e74c3c; font-weight: bold;">Pumpe P${anzahlPumpen}</td>
-                                    <td style="padding: 4px;">${utmP.zone}</td>
-                                    <td style="padding: 4px;">${utmP.ostwert}</td>
-                                    <td style="padding: 4px;">${utmP.nordwert}</td>
-                                </tr>
-                            `;
-
-                            ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
-                            
-                            speisenderDruckAktuell = pAusgang;
-                            indexLetztePumpe = i-1;
-                        }
-                    }
-
-                    if (ablaufDruck < pZiel) {
-                        anzahlPumpen++;
-                        let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts">P${anzahlPumpen}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
-                        L.marker(dichtePunkte[dichtePunkte.length - 2], {icon: pIcon, title: "Pumpe P" + anzahlPumpen}).addTo(symboleLayer);
-                        
-                        let utmP2 = getUTM(dichtePunkte[dichtePunkte.length - 2].lat, dichtePunkte[dichtePunkte.length - 2].lng);
-                        coordHtml += `
-                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                <td style="padding: 4px; color: #e74c3c; font-weight: bold;">Pumpe P${anzahlPumpen}</td>
-                                <td style="padding: 4px;">${utmP2.zone}</td>
-                                <td style="padding: 4px;">${utmP2.ostwert}</td>
-                                <td style="padding: 4px;">${utmP2.nordwert}</td>
-                            </tr>
-                        `;
-                    }
-
-                    L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
-                    let utmZiel = getUTM(dichtePunkte[dichtePunkte.length - 1].lat, dichtePunkte[dichtePunkte.length - 1].lng);
-                    coordHtml += `
-                        <tr>
-                            <td style="padding: 4px; color: #c0392b; font-weight: bold;">Verteiler (Ziel)</td>
-                            <td style="padding: 4px;">${utmZiel.zone}</td>
-                            <td style="padding: 4px;">${utmZiel.ostwert}</td>
-                            <td style="padding: 4px;">${utmZiel.nordwert}</td>
-                        </tr>
-                    </tbody></table>`;
-
-                    if (maximalerRuhedruck > 12.0) {
-                        document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
-                        document.getElementById('druck-warnung-box').style.display = 'block';
-                    }
-
-                    let anzahlSchlaeuche = Math.ceil(gesamtDistanz / 20) * leitungsart;
-                    let laengeEinsatz = anzahlSchlaeuche * 20;
-                    let reservePumpen = anzahlPumpen > 0 ? Math.ceil(anzahlPumpen / 4) : 0;
-                    let reserveSchlaeuche = Math.ceil((gesamtDistanz * leitungsart) / 100);
-                    let laengeReserve = reserveSchlaeuche * 20;
-                    let gesamtPumpen = anzahlPumpen + reservePumpen;
-                    let gesamtSchlaeuche = anzahlSchlaeuche + reserveSchlaeuche;
-                    let laengeGesamt = gesamtSchlaeuche * 20;
-
-                    let streckeInKm = gesamtDistanz / 1000;
-                    let tlfBedarf = Math.ceil((volumen * (streckeInKm + 4)) / 1000);
-
-                    document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
-                    document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
-                    document.getElementById('laengeAnzeige').innerText = laengeEinsatz;
-                    document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
-                    document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
-                    document.getElementById('reserveLaengeAnzeige').innerText = laengeReserve;
-                    document.getElementById('gesamtPumpenAnzeige').innerText = gesamtPumpen;
-                    document.getElementById('gesamtSchlauchAnzeige').innerText = gesamtSchlaeuche;
-                    document.getElementById('gesamtLaengeAnzeige').innerText = laengeGesamt;
-                    document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
-                    
-                    document.getElementById('tlfAnzeige').innerText = tlfBedarf;
-                    
-                    document.getElementById('ergebnis-box').style.display = 'flex';
-                    
-                    document.getElementById('koordinaten-liste').innerHTML = coordHtml;
-                    document.getElementById('koordinaten-box').style.display = 'flex';
-                    document.getElementById('koordinaten-liste').style.display = 'none';
-                    document.getElementById('toggleKoorBtn').innerHTML = '📍 Standort-Koordinaten (UTM WGS84) einblenden ▼';
-                    document.getElementById('toggleKoorBtn').style.borderRadius = '5px 0 0 5px';
-
+                try {
+                    let response = await fetch(apiUrl);
+                    let data = await response.json();
+                    if (!data.elevation) throw new Error();
+                    globaleHoehen = data.elevation;
+                } catch (e) {
+                    document.getElementById('api-status').innerText = "❌ Höhen-API Fehler";
+                    return;
                 }
-            } catch (error) {
-                document.getElementById('api-status').innerText = "❌ Fehler";
-                console.error(error);
             }
+
+            let hoehen = globaleHoehen;
+            let dichtePunkte = globaleDichtePunkte;
+            let startHoehe = hoehen[0];
+            let zielHoehe = hoehen[hoehen.length - 1];
+            let nettoHoehenunterschied = zielHoehe - startHoehe;
+            document.getElementById('hoehenInput').value = (nettoHoehenunterschied > 0 ? "+" : "") + Math.round(nettoHoehenunterschied) + " m";
+            document.getElementById('api-status').innerText = "✅ Geladen";
+
+            let volumen = parseInt(document.getElementById('volumenInput').value);
+            let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
+            let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
+            let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
+            let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
+            let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
+            let berechnungsVolumen = volumen / leitungsart;
+
+            const reibungstabelle = {
+                200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
+                600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
+                1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50, 1250: 2.70, 1300: 2.95, 
+                1350: 3.15, 1400: 3.40, 1450: 3.65, 1500: 3.90, 1550: 4.20, 1600: 4.45, 1650: 4.75, 
+                1700: 5.05, 1750: 5.35, 1800: 5.65, 1850: 6.00, 1900: 6.30, 1950: 6.65, 2000: 7.00
+            };
+            let reibungPro100m = reibungstabelle[berechnungsVolumen] || 1.1;
+
+            let anzahlPumpen = 0;
+            let ablaufDruck = pEntnahme;
+            let gesamtDruckbedarf = 0;
+            let maximalerRuhedruck = 0;
+            let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
+            let indexLetztePumpe = 0;
+            let pumpenIndizes = [];
+
+            for (let i = 1; i < dichtePunkte.length; i++) {
+                let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
+                let hDiff = hoehen[i] - hoehen[i-1]; 
+                let verlust = (dist / 100 * reibungPro100m) + (hDiff / 10);
+                gesamtDruckbedarf += verlust;
+                ablaufDruck -= verlust;
+
+                let ruhedruck = speisenderDruckAktuell + ((hoehen[indexLetztePumpe] - hoehen[i]) / 10);
+                if (ruhedruck > maximalerRuhedruck) maximalerRuhedruck = ruhedruck;
+
+                let pumpeNummer = pumpenIndizes.length + 1;
+                let erzwingePumpeHier = false;
+                if (manuelleVorgaben && manuelleVorgaben[pumpeNummer] !== undefined) {
+                    let zielDistVonStart = manuelleVorgaben[pumpeNummer];
+                    let aktuelleDist = 0;
+                    for(let k=1; k<=i; k++) aktuelleDist += dichtePunkte[k-1].distanceTo(dichtePunkte[k]);
+                    if (aktuelleDist >= zielDistVonStart) erzwingePumpeHier = true;
+                }
+
+                if (ablaufDruck <= pEingang || erzwingePumpeHier) {
+                    anzahlPumpen++;
+                    pumpenIndizes.push(i-1);
+                    ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
+                    speisenderDruckAktuell = pAusgang;
+                    indexLetztePumpe = i-1;
+                }
+            }
+
+            if (!manuelleVorgaben) automatischePumpenIndizes = [...pumpenIndizes];
+
+            L.marker(dichtePunkte[0], {icon: startIcon, title: "Entnahme"}).addTo(symboleLayer);
+            let coordHtml = `<table style="width: 100%; border-collapse: collapse;"><thead><tr style="border-bottom: 1px solid #7f8c8d; text-align: left;"><th style="padding:4px;">Standort</th><th style="padding:4px;">Zone</th><th style="padding:4px;">Ost</th><th style="padding:4px;">Nord</th></tr></thead><tbody>`;
+            let utmStart = getUTM(dichtePunkte[0].lat, dichtePunkte[0].lng);
+            coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td></tr>`;
+
+            pumpenIndizes.forEach((pIdx, idx) => {
+                let pNum = idx + 1;
+                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts">P${pNum}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
+                L.marker(dichtePunkte[pIdx], {icon: pIcon, title: `Pumpe P${pNum}`}).addTo(symboleLayer);
+                let utmP = getUTM(dichtePunkte[pIdx].lat, dichtePunkte[pIdx].lng);
+                coordHtml += `<tr><td style="padding:4px; color:#e74c3c; font-weight:bold;">Pumpe P${pNum}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td></tr>`;
+            });
+
+            L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
+            let utmZiel = getUTM(dichtePunkte[dichtePunkte.length - 1].lat, dichtePunkte[dichtePunkte.length - 1].lng);
+            coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td></tr></tbody></table>`;
+
+            if (maximalerRuhedruck > 12.0) {
+                document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
+                document.getElementById('druck-warnung-box').style.display = 'block';
+            }
+
+            let anzahlSchlaeuche = Math.ceil(gesamtDistanz / 20) * leitungsart;
+            let reservePumpen = anzahlPumpen > 0 ? Math.ceil(anzahlPumpen / 4) : 0;
+            let reserveSchlaeuche = Math.ceil((gesamtDistanz * leitungsart) / 100);
+
+            document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
+            document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
+            document.getElementById('laengeAnzeige').innerText = anzahlSchlaeuche * 20;
+            document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
+            document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
+            document.getElementById('reserveLaengeAnzeige').innerText = reserveSchlaeuche * 20;
+            document.getElementById('gesamtPumpenAnzeige').innerText = anzahlPumpen + reservePumpen;
+            document.getElementById('gesamtSchlauchAnzeige').innerText = anzahlSchlaeuche + reserveSchlaeuche;
+            document.getElementById('gesamtLaengeAnzeige').innerText = (anzahlSchlaeuche + reserveSchlaeuche) * 20;
+            document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
+            
+            // TLF 4000 Bedarf für Pendelverkehr berechnen (nach HLFS-Formel: Umlaufzeit / Abgabezeit)
+            let streckenKm = gesamtDistanz / 1000;
+            let vFahrt = 30; // 30 km/h Standard
+            let tFahrt = (streckenKm / vFahrt) * 60 * 2; // Hin- und Rückfahrt
+            let ruestZeit = 4.0; // 4 min Rüstzeit gesamt
+            let tFuell = 4000 / 800; // 5 min bei 800 l/min Füllleistung
+            let tAbgabe = 4000 / volumen; // Abgabezeit für 4000l Tank bei gewahltem Volumenstrom
+            let umlaufZeit = ruestZeit + tFuell + tFahrt + tAbgabe;
+            let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabe) : 0;
+            document.getElementById('tlfAnzeige').innerText = tlfBedarf;
+
+            berechnePendelverkehr();
+            
+            document.getElementById('ergebnis-box').style.display = 'flex';
+            
+            if (pumpenIndizes.length > 0) {
+                document.getElementById('feintuning-wrapper').style.display = 'flex';
+                if (!manuelleVorgaben) {
+                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte);
+                }
+            }
+            document.getElementById('pendelverkehr-wrapper').style.display = 'flex';
+
+            document.getElementById('koordinaten-liste').innerHTML = coordHtml;
+            document.getElementById('koordinaten-box').style.display = 'flex';
+            document.getElementById('koordinaten-liste').style.display = 'none';
+
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+        function berechnePendelverkehr() {
+            if (gesamtDistanz <= 0) return;
+
+            let streckenKm = gesamtDistanz / 1000;
+            let v = parseFloat(document.getElementById('pv_v').value) || 30;
+            let qFuell = parseFloat(document.getElementById('pv_qfuell').value) || 800;
+            let qAbgabe = parseFloat(document.getElementById('pv_qabgabe').value) || 400;
+            let ruestZeit = 2.0;
+
+            let fahrzeitHinRuck = (streckenKm / v) * 60 * 2;
+
+            let anzahlTLF4000 = parseInt(document.getElementById('pv_tlf4000').value) || 0;
+            let anzahlHLF20 = parseInt(document.getElementById('pv_hlf20').value) || 0;
+            let anzahlTLF3000 = parseInt(document.getElementById('pv_tlf3000').value) || 0;
+
+            let fahrzeuge = [
+                { name: "TLF 4000", anzahl: anzahlTLF4000, tank: 4000 },
+                { name: "HLF/LF 20", anzahl: anzahlHLF20, tank: 2000 },
+                { name: "TLF 3000", anzahl: anzahlTLF3000, tank: 3000 }
+            ];
+
+            let gesamtErtrag = 0;
+            let detailsHtml = "";
+            let geforderterVolumen = parseInt(document.getElementById('volumenInput').value) || 800;
+
+            fahrzeuge.forEach(f => {
+                if (f.anzahl > 0) {
+                    let tFuell = f.tank / qFuell;
+                    let tAbgabe = f.tank / qAbgabe;
+                    let umlaufzeit = ruestZeit + tFuell + fahrzeitHinRuck + tAbgabe;
+                    let leistungEinFahrzeug = (f.tank / umlaufzeit);
+                    let leistungTyp = leistungEinFahrzeug * f.anzahl;
+                    gesamtErtrag += leistungTyp;
+
+                    detailsHtml += `• <b>${f.anzahl}x ${f.name}</b> (${f.tank}l): Umlaufzeit ~${umlaufzeit.toFixed(1)} min ➔ <b>${Math.round(leistungTyp)} l/min</b><br>`;
+                }
+            });
+
+            let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
+            if (gesamtErtrag > 0) {
+                let statusColor = gesamtErtrag >= geforderterVolumen ? "#2ecc71" : "#e74c3c";
+                let statusText = gesamtErtrag >= geforderterVolumen ? "✅ Bedarf gedeckt" : "⚠️ Bedarf nicht gedeckt (Schlauchleitung nötig)";
+
+                anzeigeDiv.innerHTML = `
+                    <b>Erzielbare Gesamtleistung: <span style="font-size:15px; color:${statusColor};">${Math.round(gesamtErtrag)} l/min</span></b><br>
+                    <span style="color:${statusColor}; font-weight:bold;">${statusText}</span> (Gefordert: ${geforderterVolumen} l/min)<br>
+                    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.2); margin:4px 0;">
+                    ${detailsHtml}
+                `;
+            } else {
+                anzeigeDiv.innerHTML = `<i>Bitte Anzahl der Fahrzeuge im Pendelverkehr eintragen...</i>`;
+            }
+        }
+
+        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte) {
+            let container = document.getElementById('slider-container');
+            container.innerHTML = "";
+            
+            pumpenIndizes.forEach((pIdx, idx) => {
+                let pNum = idx + 1;
+                let maxDistM = berechneStreckenMeterBis(pIdx, dichtePunkte);
+                let minMeter = 50;
+
+                let zeile = document.createElement('div');
+                zeile.className = "pumpe-slider-zeile";
+                zeile.innerHTML = `
+                    <span style="font-weight:bold; min-width:45px;">P${pNum}:</span>
+                    <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${Math.round(maxDistM)}" value="${Math.round(maxDistM)}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
+                    <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${Math.round(maxDistM)} m</span>
+                `;
+                container.appendChild(zeile);
+            });
+        }
+
+        function berechneStreckenMeterBis(idx, dichtePunkte) {
+            let m = 0;
+            for(let i=1; i<=idx; i++) m += dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
+            return m;
+        }
+
+        function aktualisiereSliderLabel(pNum, val) {
+            document.getElementById(`label_p_${pNum}`).innerText = val + " m";
+            
+            let vorschuesse = {};
+            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
+            for(let i=1; i<=anzahl; i++) {
+                let s = document.getElementById(`slider_p_${i}`);
+                if(s) vorschuesse[i] = parseInt(s.value);
+            }
+            auswerten(vorschuesse);
         }
     </script>
 </body>
