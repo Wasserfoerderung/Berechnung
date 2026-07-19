@@ -95,6 +95,9 @@
         .pumpe-slider-zeile input[type=range] {
             flex: 1; accent-color: #e74c3c; height: 8px; cursor: pointer; min-height: unset; padding: 0;
         }
+        .pumpe-slider-zeile input[type=checkbox] {
+            accent-color: #9b59b6;
+        }
 
         /* Pendelverkehr Konfigurator Styles */
         .pv-zeile {
@@ -152,7 +155,7 @@
             .ergebnis-spalte h2 { color: #000 !important; font-size: 11px !important; margin: 1px 0 !important; }
             .ergebnis-spalte span { color: #000 !important; font-size: 13px !important; }
             .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
-            table { font-size: 14px !important; width: 100% !important; } 
+            table { font-size: 13px !important; width: 100% !important; } 
             th, td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
         }
 
@@ -514,6 +517,7 @@
         var schlauchleitung = L.polyline([], {color: 'red', weight: 5, opacity: 0.8}).addTo(map); 
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
         var symboleLayer = L.layerGroup().addTo(map); 
+        var pufferbeckenZustand = {};
 
         var startIcon = L.divIcon({ className: '', html: '<div class="icon-wasser">W</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
         var verteilerIcon = L.divIcon({ className: '', html: '<div class="icon-verteiler">V</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
@@ -630,6 +634,7 @@
 
         function streckeLoeschen(allesLeeren = true) {
             punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
+            pufferbeckenZustand = {}; // Reset der Pufferbecken
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
             document.getElementById('distanzAnzeige').innerText = '0 m';
             document.getElementById('ergebnis-box').style.display = 'none';
@@ -664,23 +669,39 @@
         let globaleHoehen = [];
         let automatischePumpenIndizes = [];
 
-        async function auswerten(manuelleVorgaben = null) {
+        async function auswerten(manuelleVorgaben = null, rebuildUI = false) {
             if (punkteListe.length < 2) { alert("Bitte zeichnen Sie eine Strecke."); return; }
             document.getElementById('api-status').innerText = "⏳ Lade API...";
             symboleLayer.clearLayers(); 
             document.getElementById('druck-warnung-box').style.display = 'none';
 
-            if (!manuelleVorgaben) {
+            if (!manuelleVorgaben || globaleHoehen.length === 0) {
                 globaleDichtePunkte = interpoliereStrecke(punkteListe, 20);
-                let lats = globaleDichtePunkte.map(p => p.lat.toFixed(5));
-                let lons = globaleDichtePunkte.map(p => p.lng.toFixed(5));
-                let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
+                
+                let chunkSize = 90; 
+                let fetchPromises = [];
+                
+                for (let i = 0; i < globaleDichtePunkte.length; i += chunkSize) {
+                    let chunk = globaleDichtePunkte.slice(i, i + chunkSize);
+                    let lats = chunk.map(p => p.lat.toFixed(5));
+                    let lons = chunk.map(p => p.lng.toFixed(5));
+                    let apiUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
+                    
+                    fetchPromises.push(
+                        fetch(apiUrl).then(res => {
+                            if (!res.ok) throw new Error("API-Fehler");
+                            return res.json();
+                        })
+                    );
+                }
 
                 try {
-                    let response = await fetch(apiUrl);
-                    let data = await response.json();
-                    if (!data.elevation) throw new Error();
-                    globaleHoehen = data.elevation;
+                    let results = await Promise.all(fetchPromises);
+                    globaleHoehen = [];
+                    results.forEach(data => {
+                        if (!data.elevation) throw new Error("Keine Elevation-Daten");
+                        globaleHoehen = globaleHoehen.concat(data.elevation);
+                    });
                 } catch (e) {
                     document.getElementById('api-status').innerText = "❌ Höhen-API Fehler";
                     return;
@@ -720,8 +741,11 @@
             let indexLetztePumpe = 0;
             let pumpenIndizes = [];
 
+            let laufendeDistanz = 0; 
+
             for (let i = 1; i < dichtePunkte.length; i++) {
                 let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
+                laufendeDistanz += dist;
                 let hDiff = hoehen[i] - hoehen[i-1]; 
                 let verlust = (dist / 100 * reibungPro100m) + (hDiff / 10);
                 gesamtDruckbedarf += verlust;
@@ -731,15 +755,18 @@
                 if (ruhedruck > maximalerRuhedruck) maximalerRuhedruck = ruhedruck;
 
                 let pumpeNummer = pumpenIndizes.length + 1;
+                let lokalerEingangsdruck = pufferbeckenZustand[pumpeNummer] ? 0.1 : pEingang;
+
+                let kritischerDruck = (i === dichtePunkte.length - 1) ? Math.max(pZiel, lokalerEingangsdruck) : lokalerEingangsdruck;
+
                 let erzwingePumpeHier = false;
                 if (manuelleVorgaben && manuelleVorgaben[pumpeNummer] !== undefined) {
                     let zielDistVonStart = manuelleVorgaben[pumpeNummer];
-                    let aktuelleDist = 0;
-                    for(let k=1; k<=i; k++) aktuelleDist += dichtePunkte[k-1].distanceTo(dichtePunkte[k]);
-                    if (aktuelleDist >= zielDistVonStart) erzwingePumpeHier = true;
+                    let distZuIminus1 = laufendeDistanz - dist;
+                    if (distZuIminus1 >= zielDistVonStart) erzwingePumpeHier = true;
                 }
 
-                if (ablaufDruck <= pEingang || erzwingePumpeHier) {
+                if (ablaufDruck <= kritischerDruck || erzwingePumpeHier) {
                     anzahlPumpen++;
                     pumpenIndizes.push(i-1);
                     ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
@@ -751,21 +778,47 @@
             if (!manuelleVorgaben) automatischePumpenIndizes = [...pumpenIndizes];
 
             L.marker(dichtePunkte[0], {icon: startIcon, title: "Entnahme"}).addTo(symboleLayer);
-            let coordHtml = `<table style="width: 100%; border-collapse: collapse;"><thead><tr style="border-bottom: 1px solid #7f8c8d; text-align: left;"><th style="padding:4px;">Standort</th><th style="padding:4px;">Zone</th><th style="padding:4px;">Ost</th><th style="padding:4px;">Nord</th></tr></thead><tbody>`;
+            
+            // NEU: Erweiterte Tabelle mit zusätzlicher Spalte "Strecke davor"
+            let coordHtml = `<table style="width: 100%; border-collapse: collapse; font-size: 13px;"><thead><tr style="border-bottom: 1px solid #7f8c8d; text-align: left;"><th style="padding:4px;">Standort</th><th style="padding:4px;">Zone</th><th style="padding:4px;">Ost</th><th style="padding:4px;">Nord</th><th style="padding:4px;">Strecke davor</th></tr></thead><tbody>`;
             let utmStart = getUTM(dichtePunkte[0].lat, dichtePunkte[0].lng);
-            coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td></tr>`;
+            coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
+
+            let prevPIdx = 0; // Hilfsvariable für die Distanzmessung zwischen den Stationen
 
             pumpenIndizes.forEach((pIdx, idx) => {
                 let pNum = idx + 1;
-                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts">P${pNum}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
+                let bgColor = pufferbeckenZustand[pNum] ? 'background-color: #9b59b6;' : '';
+                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts" style="${bgColor}">P${pNum}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
+                
                 L.marker(dichtePunkte[pIdx], {icon: pIcon, title: `Pumpe P${pNum}`}).addTo(symboleLayer);
                 let utmP = getUTM(dichtePunkte[pIdx].lat, dichtePunkte[pIdx].lng);
-                coordHtml += `<tr><td style="padding:4px; color:#e74c3c; font-weight:bold;">Pumpe P${pNum}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td></tr>`;
+                
+                // Distanz und Schläuche zum vorherigen Punkt berechnen
+                let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, pIdx, dichtePunkte);
+                let abgerundetDist = Math.round(distZuVorher);
+                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * leitungsart; // Berücksichtigt auch Doppelleitungen!
+
+                // NEU: Explizite Kennzeichnung (offen) oder (geschlossen) für den Ausdruck
+                let bezeichnung = pufferbeckenZustand[pNum] ? `Pumpe P${pNum} (offen)` : `Pumpe P${pNum} (geschlossen)`;
+                let textColor = pufferbeckenZustand[pNum] ? '#9b59b6' : '#e74c3c';
+                
+                coordHtml += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${benoetigteSchlaeuche} B)</td></tr>`;
+                
+                prevPIdx = pIdx; // Setze den Startpunkt für die nächste Strecke auf diese Pumpe
             });
 
+            // Verteiler am Ende
             L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
-            let utmZiel = getUTM(dichtePunkte[dichtePunkte.length - 1].lat, dichtePunkte[dichtePunkte.length - 1].lng);
-            coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td></tr></tbody></table>`;
+            let zielIdx = dichtePunkte.length - 1;
+            let utmZiel = getUTM(dichtePunkte[zielIdx].lat, dichtePunkte[zielIdx].lng);
+            
+            // Distanz von letzter Pumpe (oder Entnahme) zum Verteiler
+            let distZuVorherZiel = berechneStreckenMeterZwischen(prevPIdx, zielIdx, dichtePunkte);
+            let abgerundetDistZiel = Math.round(distZuVorherZiel);
+            let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * leitungsart;
+
+            coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
 
             if (maximalerRuhedruck > 12.0) {
                 document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
@@ -787,13 +840,12 @@
             document.getElementById('gesamtLaengeAnzeige').innerText = (anzahlSchlaeuche + reserveSchlaeuche) * 20;
             document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
             
-            // TLF 4000 Bedarf für Pendelverkehr berechnen (nach HLFS-Formel: Umlaufzeit / Abgabezeit)
             let streckenKm = gesamtDistanz / 1000;
-            let vFahrt = 30; // 30 km/h Standard
-            let tFahrt = (streckenKm / vFahrt) * 60 * 2; // Hin- und Rückfahrt
-            let ruestZeit = 4.0; // 4 min Rüstzeit gesamt
-            let tFuell = 4000 / 800; // 5 min bei 800 l/min Füllleistung
-            let tAbgabe = 4000 / volumen; // Abgabezeit für 4000l Tank bei gewahltem Volumenstrom
+            let vFahrt = 30; 
+            let tFahrt = (streckenKm / vFahrt) * 60 * 2; 
+            let ruestZeit = 4.0; 
+            let tFuell = 4000 / 800; 
+            let tAbgabe = 4000 / volumen; 
             let umlaufZeit = ruestZeit + tFuell + tFahrt + tAbgabe;
             let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabe) : 0;
             document.getElementById('tlfAnzeige').innerText = tlfBedarf;
@@ -804,9 +856,11 @@
             
             if (pumpenIndizes.length > 0) {
                 document.getElementById('feintuning-wrapper').style.display = 'flex';
-                if (!manuelleVorgaben) {
-                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte);
+                if (!manuelleVorgaben || rebuildUI) {
+                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben);
                 }
+            } else {
+                document.getElementById('feintuning-wrapper').style.display = 'none';
             }
             document.getElementById('pendelverkehr-wrapper').style.display = 'flex';
 
@@ -871,30 +925,91 @@
             }
         }
 
-        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte) {
+        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben = null) {
             let container = document.getElementById('slider-container');
+            
+            let alteSlider = {};
+            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
+            for(let i=1; i<=anzahl; i++) {
+                let s = document.getElementById(`slider_p_${i}`);
+                if(s) {
+                    alteSlider[i] = {
+                        max: parseInt(s.max),
+                        val: parseInt(s.value)
+                    };
+                }
+            }
+
             container.innerHTML = "";
             
             pumpenIndizes.forEach((pIdx, idx) => {
                 let pNum = idx + 1;
-                let maxDistM = berechneStreckenMeterBis(pIdx, dichtePunkte);
+                let ermittelteDistanz = Math.round(berechneStreckenMeterBis(pIdx, dichtePunkte));
                 let minMeter = 50;
+                
+                let maxDistM = ermittelteDistanz;
+                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined && alteSlider[pNum]) {
+                    maxDistM = Math.max(ermittelteDistanz, alteSlider[pNum].max);
+                }
+
+                let currentVal = ermittelteDistanz;
+                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined) {
+                    currentVal = manuelleVorgaben[pNum];
+                }
+                
+                if (currentVal > maxDistM) currentVal = maxDistM;
+                if (currentVal < minMeter) currentVal = minMeter;
+
+                let isChecked = pufferbeckenZustand[pNum] ? "checked" : "";
 
                 let zeile = document.createElement('div');
                 zeile.className = "pumpe-slider-zeile";
+                zeile.style.flexDirection = "column";
+                zeile.style.alignItems = "stretch";
+                zeile.style.gap = "8px";
                 zeile.innerHTML = `
-                    <span style="font-weight:bold; min-width:45px;">P${pNum}:</span>
-                    <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${Math.round(maxDistM)}" value="${Math.round(maxDistM)}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
-                    <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${Math.round(maxDistM)} m</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">P${pNum}:</span>
+                        <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
+                        <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${currentVal} m</span>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
+                        <label for="check_p_${pNum}" style="font-size: 11px; cursor:pointer; color:#bdc3c7;">↳ Offene Förderstrecke (Becken / 0,1 bar Eingang)</label>
+                        <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                    </div>
                 `;
                 container.appendChild(zeile);
             });
+        }
+
+        // NEU: Hilfsfunktion zur Distanzberechnung ZWISCHEN zwei beliebigen Punkten der Route
+        function berechneStreckenMeterZwischen(idx1, idx2, dichtePunkte) {
+            let m = 0;
+            for(let i=idx1+1; i<=idx2; i++) m += dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
+            return m;
         }
 
         function berechneStreckenMeterBis(idx, dichtePunkte) {
             let m = 0;
             for(let i=1; i<=idx; i++) m += dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
             return m;
+        }
+
+        function togglePufferbecken(pNum, isChecked) {
+            pufferbeckenZustand[pNum] = isChecked;
+            
+            let vorschuesse = {};
+            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
+            
+            for(let i=1; i<=anzahl; i++) {
+                let s = document.getElementById(`slider_p_${i}`);
+                if(s) {
+                    if (i < pNum) {
+                        vorschuesse[i] = parseInt(s.value);
+                    }
+                }
+            }
+            auswerten(vorschuesse, true);
         }
 
         function aktualisiereSliderLabel(pNum, val) {
@@ -906,7 +1021,7 @@
                 let s = document.getElementById(`slider_p_${i}`);
                 if(s) vorschuesse[i] = parseInt(s.value);
             }
-            auswerten(vorschuesse);
+            auswerten(vorschuesse, false);
         }
     </script>
 </body>
