@@ -7,6 +7,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
@@ -30,7 +31,7 @@
             display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; justify-content: center; width: 100%;
         }
 
-        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 14px; position: relative; min-width: 130px; flex: 1; }
+        .eingabe-gruppe { display: flex; flex-direction: column; font-size: 14px; position: relative; min-width: 110px; flex: 1; }
         .eingabe-gruppe label { white-space: nowrap; margin-bottom: 3px; font-weight: bold; color: #ecf0f1; }
         
         input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%; font-size: 16px; box-sizing: border-box; background: #fff; min-height: 44px; }
@@ -170,13 +171,39 @@
         .icon-wasser { background-color: #3498db; border: 2px solid white; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 13px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .icon-ts { background-color: #e74c3c; border: 2px solid white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 11px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
         .icon-verteiler { background-color: #c0392b; border: 2px solid white; border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .icon-hfs { background-color: #e67e22; border: 2px solid white; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
+        .icon-f5b { background-color: #f39c12; border: 2px solid white; border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.5); z-index: 900 !important; text-align: center; line-height: 1.1; }
     </style>
 </head>
 <body>
 
+    <!-- Login Modal (Standardmäßig ausgeblendet) -->
+    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="margin-top: 0; color: #2c3e50;">Feuerwehr App Login</h2>
+            <p style="font-size: 13px; color: #7f8c8d;">Logge dich ein, um Strecken zu speichern.</p>
+            
+            <input type="email" id="auth-email" placeholder="E-Mail Adresse" style="margin-bottom: 10px;">
+            <input type="password" id="auth-password" placeholder="Passwort" style="margin-bottom: 15px;">
+            
+            <button class="button btn-calc" onclick="login()" style="width: 100%; margin-bottom: 10px;">Einloggen</button>
+            <button class="button btn-save" onclick="register()" style="width: 100%; margin-bottom: 15px;">Neu Registrieren</button>
+            
+            <p id="auth-message" style="color: #e74c3c; font-size: 13px; margin: 0;"></p>
+            <button onclick="closeAuthModal()" style="margin-top: 15px; background: none; border: none; color: #7f8c8d; cursor: pointer; text-decoration: underline;">Ohne Login fortfahren (Free-Modus)</button>
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <div id="info-bereich">
+
+        <!-- User Status Bar -->
+        <div id="user-status-bar" style="width: 100%; max-width: 1000px; text-align: right; font-size: 12px; margin-bottom: 5px;">
+            <span id="user-email-display">Nicht eingeloggt</span> 
+            <button onclick="document.getElementById('auth-modal').style.display='flex'" id="login-btn" style="background:#2980b9; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Login</button>
+            <button onclick="logout()" id="logout-btn" style="display:none; background:#e74c3c; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Logout</button>
+        </div>
         
         <div id="druck-meta-titel">
             EINSATZAUFTRAG: WASSERFÖRDERUNG<br>
@@ -218,41 +245,50 @@
                 <span id="api-status"></span>
             </div>
 
-            <div class="eingabe-gruppe">
+            <!-- HFS Integration -->
+            <div class="eingabe-gruppe" style="min-width: 90px;">
+                <label>HFS (AB-LW):</label>
+                <input type="number" id="hfsCountInput" value="0" min="0" max="5">
+            </div>
+
+            <div class="eingabe-gruppe" style="min-width: 110px;">
                 <label>Volumenstrom [l/min]:</label>
                 <select id="volumenInput" onchange="berechnePendelverkehr()">
                     <option value="400">400</option>
                     <option value="600">600</option>
                     <option value="800" selected>800</option>
-                    <option value="1000">1000</option>
-                    <option value="1200">1200 (FPN 10-1500)</option>
-                    <option value="1400">1400 (FPN 10-1500)</option>
-                    <option value="1600">1600 (FPN 10-2000)</option>
-                    <option value="1800">1800 (FPN 10-2000)</option>
-                    <option value="2000">2000 (FPN 10-2000)</option>
+                    <option value="1000">1.000</option>
+                    <option value="1200">1.200 FPN 10-1500</option>
+                    <option value="1400">1.400 FPN 10-1500</option>
+                    <option value="1600">1.600 FPN 10-2000</option>
+                    <option value="1800">1.800 FPN 10-2000</option>
+                    <option value="2000">2.000 FPN 10-2000</option>
+                    <option value="3000">3.000 HFS</option>
+                    <option value="4000">4.000 HFS</option>
                 </select>
             </div>
+
             <div class="eingabe-gruppe" style="min-width: 90px;">
-                <label>Leitung:</label>
+                <label>Leitung (B):</label>
                 <select id="leitungsartInput">
                     <option value="1" selected>Einfach</option>
                     <option value="2">Doppel</option>
                 </select>
             </div>
 
-            <div class="eingabe-gruppe" style="min-width: 90px;">
+            <div class="eingabe-gruppe" style="min-width: 80px;">
                 <label>Entnahme [bar]:</label>
                 <input type="number" id="entnahmeInput" value="0.0" step="0.5" min="0" max="10">
             </div>
-            <div class="eingabe-gruppe" style="min-width: 90px;">
+            <div class="eingabe-gruppe" style="min-width: 80px;">
                 <label>Ausgang [bar]:</label>
                 <input type="number" id="ausgangsdruckInput" value="10.0" step="0.5" min="0" max="15">
             </div>
-            <div class="eingabe-gruppe" style="min-width: 90px;">
+            <div class="eingabe-gruppe" style="min-width: 80px;">
                 <label>Eingang [bar]:</label>
                 <input type="number" id="eingangsdruckInput" value="1.5" step="0.1" min="0" max="5">
             </div>
-            <div class="eingabe-gruppe" style="min-width: 90px;">
+            <div class="eingabe-gruppe" style="min-width: 80px;">
                 <label>Ziel [bar]:</label>
                 <input type="number" id="zieldruckInput" value="5.0" step="0.5" min="0" max="10">
             </div>
@@ -273,22 +309,30 @@
 
         <div id="ergebnis-box">
             <div class="ergebnis-container">
-                <div class="ergebnis-spalte">
-                    <h3 style="color: #2ecc71;">Einsatzmaterial</h3>
+
+                <div class="ergebnis-spalte" id="hfs-result-spalte" style="display:none;">
+                    <h3 style="color: #e67e22;">Großpumpensystem</h3>
+                    <h2>Eingesetzte AB-LWV: <span id="hfsAnzeige">0</span></h2>
+                    <h2>F-Schläuche: <span id="fSchlauchAnzeige">0</span> Stück</h2>
+                    <div class="laengen-info" style="color: #e67e22;">(Länge: <span id="fLaengeAnzeige">0</span> m)</div>
+                </div>
+
+                <div class="ergebnis-spalte rahmen-links" id="trassen-result-spalte">
+                    <h3 style="color: #2ecc71;">Einsatzmaterial (B-Trasse)</h3>
                     <h2>Pumpen: <span id="pumpenAnzeige">0</span></h2>
                     <h2>B-Schläuche: <span id="schlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info">(Länge: <span id="laengeAnzeige">0</span> m)</div>
                 </div>
                 
                 <div class="ergebnis-spalte rahmen-links">
-                    <h3 style="color: #e67e22;">Ausfallreserve</h3>
+                    <h3 style="color: #e67e22;">Ausfallreserve (B)</h3>
                     <h2>Pumpen: <span id="reservePumpenAnzeige">0</span></h2>
                     <h2>B-Schläuche: <span id="reserveSchlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info">(Länge: <span id="reserveLaengeAnzeige">0</span> m)</div>
                 </div>
 
                 <div class="ergebnis-spalte rahmen-links">
-                    <h3 style="color: #3498db;">Gesamtbedarf</h3>
+                    <h3 style="color: #3498db;">Gesamtbedarf (B)</h3>
                     <h2>Pumpen: <span id="gesamtPumpenAnzeige">0</span></h2>
                     <h2>B-Schläuche: <span id="gesamtSchlauchAnzeige">0</span> Stück</h2>
                     <div class="laengen-info" style="color: #3498db;">(Länge: <span id="gesamtLaengeAnzeige">0</span> m)</div>
@@ -300,9 +344,6 @@
                     <div class="laengen-info" style="color: #9b59b6;">(bei v = 30 km/h)</div>
                 </div>
             </div>
-            <p style="margin: 8px 0 0 0; font-size: 12px; color: #bdc3c7; text-align: center;">
-                (Gesamtdruckbedarf reine Strecke: <span id="druckbedarfAnzeige">0</span> bar)
-            </p>
         </div>
 
         <div id="feintuning-wrapper" class="klapp-wrapper">
@@ -362,6 +403,38 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     
     <script>
+        // --- Reibungsverlust Interpolations-Hilfen ---
+        const reibungstabelleB = {
+            200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
+            600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
+            1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50, 1250: 2.70, 1300: 2.95, 
+            1350: 3.15, 1400: 3.40, 1450: 3.65, 1500: 3.90, 1550: 4.20, 1600: 4.45, 1650: 4.75, 
+            1700: 5.05, 1750: 5.35, 1800: 5.65, 1850: 6.00, 1900: 6.30, 1950: 6.65, 2000: 7.00
+        };
+
+        function getBVerlust(q) {
+            let keys = Object.keys(reibungstabelleB).map(Number).sort((a,b)=>a-b);
+            if (q <= keys[0]) return reibungstabelleB[keys[0]];
+            if (q >= keys[keys.length-1]) return reibungstabelleB[keys[keys.length-1]];
+            for(let j=0; j<keys.length-1; j++) {
+                if (q === keys[j]) return reibungstabelleB[keys[j]];
+                if (q > keys[j] && q < keys[j+1]) {
+                    let anteil = (q - keys[j]) / (keys[j+1] - keys[j]);
+                    return reibungstabelleB[keys[j]] + anteil * (reibungstabelleB[keys[j+1]] - reibungstabelleB[keys[j]]);
+                }
+            }
+            return 1.1; 
+        }
+
+        function getFVerlust(q) {
+            if (q <= 1000) return (q/1000) * 0.043;
+            if (q <= 2000) return 0.043 + ((q-1000)/1000) * (0.148 - 0.043);
+            if (q <= 3000) return 0.148 + ((q-2000)/1000) * (0.309 - 0.148);
+            if (q <= 4000) return 0.309 + ((q-3000)/1000) * (0.520 - 0.309);
+            if (q <= 8000) return 0.520 + ((q-4000)/4000) * (1.844 - 0.520);
+            return 1.844 + ((q-8000)/800) * (2.1088 - 1.844);
+        }
+
         function getUTM(lat, lon) {
             let zone = Math.floor((lon + 180) / 6) + 1;
             let projString = `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
@@ -402,51 +475,14 @@
         }
 
         function drucken() {
-            let streckenName = document.getElementById('streckenNameInput').value.trim();
-            document.getElementById('druckStreckenName').innerText = "Strecke: " + (streckenName !== "" ? streckenName : "Unbenannt");
-            let jetzt = new Date();
-            document.getElementById('druckDatumUhrzeit').innerText = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
-
-            let vol = document.getElementById('volumenInput').selectedOptions[0].text;
-            let leit = document.getElementById('leitungsartInput').selectedOptions[0].text;
-            let ent = document.getElementById('entnahmeInput').value;
-            let aus = document.getElementById('ausgangsdruckInput').value;
-            let ein = document.getElementById('eingangsdruckInput').value;
-            let ziel = document.getElementById('zieldruckInput').value;
-            let dist = document.getElementById('distanzAnzeige').innerText;
-            let hoehe = document.getElementById('hoehenInput').value;
-
-            document.getElementById('druckParamText').innerText = 
-                `Volumenstrom: ${vol} l/min | Leitung: ${leit} | Entnahme: ${ent} bar | Ausgang: ${aus} bar | Eingang: ${ein} bar | Ziel: ${ziel} bar | Strecke: ${dist} | H.Diff: ${hoehe}`;
-
-            document.getElementById('koordinaten-liste').style.display = 'block';
-
-            let mapContainer = document.getElementById('map');
-            mapContainer.style.width = '730px'; 
-            mapContainer.style.height = '360px'; 
-            mapContainer.style.flex = 'none';
-            mapContainer.style.minHeight = 'unset';
-
-            if (punkteListe.length >= 2) {
-                map.invalidateSize();
-                map.fitBounds(schlauchleitung.getBounds(), { padding: [30, 30], animate: false });
+            if (!isPremium) {
+                zeigePremiumWerbung();
+                return;
             }
-
-            setTimeout(function() {
-                window.print();
-                setTimeout(function() {
-                    mapContainer.style.width = '';
-                    mapContainer.style.height = '';
-                    mapContainer.style.flex = '';
-                    mapContainer.style.minHeight = '';
-                    map.invalidateSize();
-                    if (punkteListe.length >= 2) {
-                        map.fitBounds(schlauchleitung.getBounds(), { padding: [40, 40] });
-                    }
-                }, 500);
-            }, 1500);
+            window.print();
         }
 
+        // --- MAP INITIALISIERUNG & OVERPASS API ---
         var map = L.map('map').setView([50.2925, 8.8142], 14);
         var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 
@@ -457,6 +493,22 @@
             "https://overpass.kumi.systems/api/interpreter",
             "https://lz4.overpass-api.de/api/interpreter"
         ];
+        
+        // Supabase Konfiguration (GESICHERT FÜR LOKALEN START)
+        const _SUPABASE_URL = 'https://rjkdtshqchmzkqgekhak.supabase.co';
+        const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqa2R0c2hxY2htemtxZ2VraGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjMzMjgsImV4cCI6MjA5ODkzOTMyOH0.e0cfw0eP1GDTzyIXjcgt9ToZXUwAL9QdN3zg895R0HA';
+
+        // Namenskonflikt behoben: Die Variable heißt nun supabaseClient
+        let supabaseClient = null;
+        try {
+            supabaseClient = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+        } catch(e) {
+            console.error("Supabase konnte nicht geladen werden:", e);
+        }
+
+        // Globale Variablen für den Nutzerstatus
+        let currentUser = null;
+        let isPremium = false;
 
         map.on('overlayadd', function(e) { if (e.layer === ofmLayer) ladeHydranten(); });
         map.on('moveend', function() {
@@ -509,18 +561,25 @@
         var baseMaps = { "Standard Karte": osmLayer };
         var overlayMaps = { "🚒 Hydranten anzeigen": ofmLayer };
         L.control.layers(baseMaps, overlayMaps).addTo(map);
+        // --- ENDE MAP INITIALISIERUNG ---
         
         var punkteListe = []; 
         var markerListe = []; 
         var geloeschtePunkteListe = []; 
         var gesamtDistanz = 0; 
-        var schlauchleitung = L.polyline([], {color: 'red', weight: 5, opacity: 0.8}).addTo(map); 
+
+        var schlauchleitung = L.polyline([], {color: 'red', weight: 4, dashArray: '5, 5', opacity: 0.8}).addTo(map); 
+        var fSchlauchleitung = null;
+        var bSchlauchleitung = null;
+
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
         var symboleLayer = L.layerGroup().addTo(map); 
         var pufferbeckenZustand = {};
 
         var startIcon = L.divIcon({ className: '', html: '<div class="icon-wasser">W</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+        var hfsIcon = L.divIcon({ className: '', html: '<div class="icon-hfs">HFS</div>', iconSize: [34, 34], iconAnchor: [17, 17] });
         var verteilerIcon = L.divIcon({ className: '', html: '<div class="icon-verteiler">V</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+        var f5bIcon = L.divIcon({ className: '', html: '<div class="icon-f5b">F-5B</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
 
         var GpsButton = L.Control.extend({
             options: { position: 'topleft' },
@@ -530,6 +589,10 @@
                 container.title = 'Meinen Standort ermitteln';
                 container.onclick = function(e) {
                     e.stopPropagation();
+                    if (!isPremium) {
+                        zeigePremiumWerbung();
+                        return;
+                    }
                     map.locate({setView: true, maxZoom: 16});
                 };
                 return container;
@@ -538,6 +601,7 @@
         map.addControl(new GpsButton());
 
         map.on('locationfound', function(e) {
+            if (!isPremium) return;
             var meinStandort = e.latlng;
             L.circle(meinStandort, { radius: e.accuracy / 2, color: '#3498db', fillOpacity: 0.15 }).addTo(knotenpunkteLayer);
             handleNeuerPunkt(meinStandort);
@@ -549,7 +613,12 @@
             markerListe.push(marker);
             if (!isRedo) geloeschtePunkteListe = [];
             punkteListe.push(neueKoordinate);
+            
             schlauchleitung.setLatLngs(punkteListe);
+            schlauchleitung.setStyle({opacity: 0.8});
+            if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
+            if(bSchlauchleitung) map.removeLayer(bSchlauchleitung);
+
             aktualisiereDistanz();
         }
 
@@ -558,6 +627,9 @@
             geloeschtePunkteListe.push(punkteListe.pop());
             knotenpunkteLayer.removeLayer(markerListe.pop());
             schlauchleitung.setLatLngs(punkteListe);
+            schlauchleitung.setStyle({opacity: 0.8});
+            if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
+            if(bSchlauchleitung) map.removeLayer(bSchlauchleitung);
             aktualisiereDistanz();
         }
 
@@ -579,7 +651,6 @@
             document.getElementById('koordinaten-box').style.display = 'none';
             document.getElementById('api-status').innerText = "";
             symboleLayer.clearLayers(); 
-            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         function toggleSpeicher() {
@@ -588,54 +659,129 @@
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
-        window.onload = function() { aktualisiereSpeicherDropdown(); };
-
-        function aktualisiereSpeicherDropdown() {
-            let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+        // --- SUPABASE SPEICHERUNG / LADEN ---
+        async function aktualisiereSpeicherDropdown() {
             let select = document.getElementById('gespeicherteStreckenSelect');
             select.innerHTML = '<option value="">-- Keine gewählt --</option>';
-            for (let name in gespeicherteStrecken) {
-                let opt = document.createElement('option'); opt.value = name; opt.innerText = name; select.appendChild(opt);
+
+            if (currentUser && supabaseClient) {
+                // Cloud-Speicher über Supabase
+                let { data, error } = await supabaseClient
+                    .from('routes')
+                    .select('id, name, route_data')
+                    .eq('user_id', currentUser.id);
+
+                if (!error && data) {
+                    data.forEach(row => {
+                        let opt = document.createElement('option');
+                        opt.value = row.id;
+                        opt.innerText = row.name;
+                        // Wir speichern die rohen Koordinaten als Data-Attribut im Option-Tag
+                        opt.dataset.route = JSON.stringify(row.route_data);
+                        select.appendChild(opt);
+                    });
+                }
+            } else {
+                // Fallback: localStorage gesichert gegen Browser-Blockaden
+                try {
+                    let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+                    for (let name in gespeicherteStrecken) {
+                        let opt = document.createElement('option'); 
+                        opt.value = name; 
+                        opt.innerText = name; 
+                        opt.dataset.route = JSON.stringify(gespeicherteStrecken[name]);
+                        select.appendChild(opt);
+                    }
+                } catch(e) {
+                    console.warn("Lokaler Speicher deaktiviert.");
+                }
             }
         }
 
-        function streckeSpeichern() {
+        async function streckeSpeichern() {
             let name = document.getElementById('streckenNameInput').value.trim();
             if (name === "" || punkteListe.length < 2) { alert("Name fehlt oder keine Strecke."); return; }
-            let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
-            gespeicherteStrecken[name] = punkteListe;
-            localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
-            aktualisiereSpeicherDropdown();
-            alert("Gespeichert!");
+
+            if (currentUser && supabaseClient) {
+                // In Supabase speichern
+                let { error } = await supabaseClient
+                    .from('routes')
+                    .insert([{ user_id: currentUser.id, name: name, route_data: punkteListe }]);
+
+                if (error) {
+                    alert("Fehler beim Speichern: " + error.message);
+                } else {
+                    alert("In Cloud gespeichert!");
+                    aktualisiereSpeicherDropdown();
+                }
+            } else {
+                // Lokaler Speicher (Fallback)
+                try {
+                    let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+                    gespeicherteStrecken[name] = punkteListe;
+                    localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
+                    aktualisiereSpeicherDropdown();
+                    alert("Lokal gespeichert!");
+                } catch (e) {
+                    alert("Speichern fehlgeschlagen. Dein Browser blockiert lokale Daten.");
+                }
+            }
         }
 
         function streckeLaden() {
-            let name = document.getElementById('gespeicherteStreckenSelect').value; if (name === "") return;
-            let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
-            let geladenePunkte = gespeicherteStrecken[name];
+            let select = document.getElementById('gespeicherteStreckenSelect');
+            if (select.selectedIndex < 0) return;
+            let selectedOpt = select.options[select.selectedIndex];
+            let routeDataString = selectedOpt.dataset.route;
+
+            if (!routeDataString) return;
+
+            let geladenePunkte = JSON.parse(routeDataString);
             if (geladenePunkte && geladenePunkte.length > 0) {
                 streckeLoeschen(false);
-                document.getElementById('streckenNameInput').value = name;
+                document.getElementById('streckenNameInput').value = selectedOpt.innerText;
                 geladenePunkte.forEach(p => handleNeuerPunkt(L.latLng(p.lat, p.lng), true));
                 map.fitBounds(schlauchleitung.getBounds());
             }
         }
 
-        function streckeAusSpeicherLoeschen() {
-            let name = document.getElementById('gespeicherteStreckenSelect').value; if (name === "") return;
-            if(confirm("Strecke löschen?")) {
-                let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
-                delete gespeicherteStrecken[name];
-                localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
+        async function streckeAusSpeicherLoeschen() {
+            let select = document.getElementById('gespeicherteStreckenSelect');
+            let routeIdOrName = select.value;
+            if (!routeIdOrName) return;
+
+            if (confirm("Strecke löschen?")) {
+                if (currentUser && supabaseClient) {
+                    // Aus Supabase löschen
+                    let { error } = await supabaseClient
+                        .from('routes')
+                        .delete()
+                        .eq('id', routeIdOrName);
+
+                    if (error) {
+                        alert("Fehler beim Löschen: " + error.message);
+                        return;
+                    }
+                } else {
+                    // Aus lokalem Speicher löschen
+                    try {
+                        let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+                        delete gespeicherteStrecken[routeIdOrName];
+                        localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
+                    } catch (e) {}
+                }
                 aktualisiereSpeicherDropdown();
                 document.getElementById('streckenNameInput').value = "";
+                alert("Strecke gelöscht.");
             }
         }
 
         function streckeLoeschen(allesLeeren = true) {
             punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
-            pufferbeckenZustand = {}; // Reset der Pufferbecken
+            pufferbeckenZustand = {}; 
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
+            if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
+            if(bSchlauchleitung) map.removeLayer(bSchlauchleitung);
             document.getElementById('distanzAnzeige').innerText = '0 m';
             document.getElementById('ergebnis-box').style.display = 'none';
             document.getElementById('feintuning-wrapper').style.display = 'none';
@@ -674,6 +820,7 @@
             document.getElementById('api-status').innerText = "⏳ Lade API...";
             symboleLayer.clearLayers(); 
             document.getElementById('druck-warnung-box').style.display = 'none';
+            schlauchleitung.setStyle({opacity: 0}); 
 
             if (!manuelleVorgaben || globaleHoehen.length === 0) {
                 globaleDichtePunkte = interpoliereStrecke(punkteListe, 20);
@@ -716,148 +863,260 @@
             document.getElementById('hoehenInput').value = (nettoHoehenunterschied > 0 ? "+" : "") + Math.round(nettoHoehenunterschied) + " m";
             document.getElementById('api-status').innerText = "✅ Geladen";
 
+            // PARAMETER AUSLESE
             let volumen = parseInt(document.getElementById('volumenInput').value);
             let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
+            
             let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
             let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
             let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
             let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
-            let berechnungsVolumen = volumen / leitungsart;
+            
+            let hfsCount = parseInt(document.getElementById('hfsCountInput').value) || 0;
+            let hfsMode = 10.0;
 
-            const reibungstabelle = {
-                200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
-                600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
-                1000: 1.70, 1050: 1.90, 1100: 2.10, 1150: 2.30, 1200: 2.50, 1250: 2.70, 1300: 2.95, 
-                1350: 3.15, 1400: 3.40, 1450: 3.65, 1500: 3.90, 1550: 4.20, 1600: 4.45, 1650: 4.75, 
-                1700: 5.05, 1750: 5.35, 1800: 5.65, 1850: 6.00, 1900: 6.30, 1950: 6.65, 2000: 7.00
-            };
-            let reibungPro100m = reibungstabelle[berechnungsVolumen] || 1.1;
+            let pumpenStandardName = "PFPN 10-1000";
+            if (volumen >= 1000 && volumen <= 2000) pumpenStandardName = "FPN 10-1500 / 2000";
+            if (volumen > 2000) pumpenStandardName = "HFS";
 
-            let anzahlPumpen = 0;
-            let ablaufDruck = pEntnahme;
-            let gesamtDruckbedarf = 0;
-            let maximalerRuhedruck = 0;
-            let speisenderDruckAktuell = (pEntnahme > 0) ? pEntnahme : pAusgang; 
-            let indexLetztePumpe = 0;
+            let anzahlPumpenStationen = 0;
             let pumpenIndizes = [];
+            let indexLetztePumpe = 0;
+            
+            let fSchlauchPhase = (hfsCount > 0);
+            let hfsVerfuegbar = hfsCount;
+            let hfsEingesetzt = fSchlauchPhase ? 1 : 0;
+            let hfsBoosterIndizes = [];
+
+            let ablaufDruck = fSchlauchPhase ? hfsMode : pEntnahme; 
+            let hatStartPumpe = false;
+            
+            if(!fSchlauchPhase && ablaufDruck <= pEingang) {
+                ablaufDruck = pAusgang;
+                hatStartPumpe = true;
+            }
+
+            let pumpenNummerOffset = hatStartPumpe ? 1 : 0;
+
+            let maxFDirekt = 1800; 
+            let distF = 0;
+            let distF_lokal = 0; 
+            let distB = 0;
+            let ubergabeIndex = -1;
+            let maximalerRuhedruck = 0;
+
+            let maxFlowPerB = 800; 
+            let trassenMultiplikator = 1;
+            
+            if (volumen > 2000 || (fSchlauchPhase && volumen > 800)) {
+                let reqLines = Math.ceil(volumen / maxFlowPerB);
+                trassenMultiplikator = Math.ceil(reqLines / leitungsart);
+            }
+            let berechnungsVolumenB = volumen / (trassenMultiplikator * leitungsart);
+            let reibungPro100m = getBVerlust(berechnungsVolumenB);
 
             let laufendeDistanz = 0; 
+            let speisenderDruckAktuell = ablaufDruck;
 
             for (let i = 1; i < dichtePunkte.length; i++) {
                 let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
                 laufendeDistanz += dist;
                 let hDiff = hoehen[i] - hoehen[i-1]; 
-                let verlust = (dist / 100 * reibungPro100m) + (hDiff / 10);
-                gesamtDruckbedarf += verlust;
-                ablaufDruck -= verlust;
+                
+                if (fSchlauchPhase) {
+                    distF += dist;
+                    distF_lokal += dist;
+                    let verlustF = (dist / 100 * getFVerlust(volumen)) + (hDiff / 10);
+                    ablaufDruck -= verlustF;
+                    
+                    let limitReached = (distF_lokal >= maxFDirekt);
+                    let kritischerDruckF = (i === dichtePunkte.length - 1) ? Math.max(pZiel, pEingang) : pEingang; 
+                    let pressureReached = (ablaufDruck <= kritischerDruckF);
+                    
+                    if (limitReached || pressureReached || i === dichtePunkte.length - 1) {
+                        if (i !== dichtePunkte.length - 1 && (limitReached || pressureReached) && hfsEingesetzt < hfsVerfuegbar) {
+                            hfsEingesetzt++;
+                            hfsBoosterIndizes.push(i);
+                            ablaufDruck = hfsMode;
+                            distF_lokal = 0;
+                        } else {
+                            fSchlauchPhase = false;
+                            ubergabeIndex = i; 
+                            
+                            if (i !== dichtePunkte.length - 1 && pressureReached) {
+                                anzahlPumpenStationen++;
+                                pumpenIndizes.push(i);
+                                ablaufDruck = pAusgang;
+                                indexLetztePumpe = i;
+                                speisenderDruckAktuell = pAusgang;
+                            } else {
+                                speisenderDruckAktuell = ablaufDruck; 
+                            }
+                        }
+                    }
+                } else {
+                    distB += dist;
+                    let verlustB = (dist / 100 * reibungPro100m) + (hDiff / 10);
+                    ablaufDruck -= verlustB;
+                    
+                    let ruhedruck = speisenderDruckAktuell + ((hoehen[indexLetztePumpe] - hoehen[i]) / 10);
+                    if (ruhedruck > maximalerRuhedruck) maximalerRuhedruck = ruhedruck;
 
-                let ruhedruck = speisenderDruckAktuell + ((hoehen[indexLetztePumpe] - hoehen[i]) / 10);
-                if (ruhedruck > maximalerRuhedruck) maximalerRuhedruck = ruhedruck;
+                    let pNumIdx = pumpenIndizes.length + 1 + pumpenNummerOffset;
+                    let lokalerEingangsdruck = pufferbeckenZustand[pNumIdx] ? 0.1 : pEingang;
+                    let kritischerDruck = (i === dichtePunkte.length - 1) ? Math.max(pZiel, lokalerEingangsdruck) : lokalerEingangsdruck;
+                    
+                    let erzwingePumpeHier = false;
+                    if (manuelleVorgaben && manuelleVorgaben[pNumIdx] !== undefined) {
+                        let zielDistVonStart = manuelleVorgaben[pNumIdx];
+                        let distZuIminus1 = laufendeDistanz - dist;
+                        if (distZuIminus1 >= zielDistVonStart) erzwingePumpeHier = true;
+                    }
 
-                let pumpeNummer = pumpenIndizes.length + 1;
-                let lokalerEingangsdruck = pufferbeckenZustand[pumpeNummer] ? 0.1 : pEingang;
-
-                let kritischerDruck = (i === dichtePunkte.length - 1) ? Math.max(pZiel, lokalerEingangsdruck) : lokalerEingangsdruck;
-
-                let erzwingePumpeHier = false;
-                if (manuelleVorgaben && manuelleVorgaben[pumpeNummer] !== undefined) {
-                    let zielDistVonStart = manuelleVorgaben[pumpeNummer];
-                    let distZuIminus1 = laufendeDistanz - dist;
-                    if (distZuIminus1 >= zielDistVonStart) erzwingePumpeHier = true;
-                }
-
-                if (ablaufDruck <= kritischerDruck || erzwingePumpeHier) {
-                    anzahlPumpen++;
-                    pumpenIndizes.push(i-1);
-                    ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
-                    speisenderDruckAktuell = pAusgang;
-                    indexLetztePumpe = i-1;
+                    if (ablaufDruck <= kritischerDruck || erzwingePumpeHier) {
+                        anzahlPumpenStationen++;
+                        pumpenIndizes.push(i-1);
+                        ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
+                        speisenderDruckAktuell = pAusgang;
+                        indexLetztePumpe = i-1;
+                    }
                 }
             }
 
             if (!manuelleVorgaben) automatischePumpenIndizes = [...pumpenIndizes];
 
-            L.marker(dichtePunkte[0], {icon: startIcon, title: "Entnahme"}).addTo(symboleLayer);
+            if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
+            if(bSchlauchleitung) map.removeLayer(bSchlauchleitung);
             
-            // NEU: Erweiterte Tabelle mit zusätzlicher Spalte "Strecke davor"
+            let fPoints = ubergabeIndex > 0 ? dichtePunkte.slice(0, ubergabeIndex + 1) : [];
+            let bPoints = ubergabeIndex > 0 ? dichtePunkte.slice(ubergabeIndex) : dichtePunkte;
+            if (hfsCount > 0 && ubergabeIndex === -1) { 
+                fPoints = dichtePunkte; 
+                bPoints = []; 
+            }
+            fSchlauchleitung = L.polyline(fPoints, {color: '#e67e22', weight: 6, opacity: 0.9}).addTo(map);
+            bSchlauchleitung = L.polyline(bPoints, {color: 'red', weight: 5, opacity: 0.8}).addTo(map);
+
             let coordHtml = `<table style="width: 100%; border-collapse: collapse; font-size: 13px;"><thead><tr style="border-bottom: 1px solid #7f8c8d; text-align: left;"><th style="padding:4px;">Standort</th><th style="padding:4px;">Zone</th><th style="padding:4px;">Ost</th><th style="padding:4px;">Nord</th><th style="padding:4px;">Strecke davor</th></tr></thead><tbody>`;
             let utmStart = getUTM(dichtePunkte[0].lat, dichtePunkte[0].lng);
-            coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
+            let trasseTextStart = trassenMultiplikator > 1 ? `[${trassenMultiplikator}x] ` : "";
+            
+            if (hfsCount > 0) {
+                L.marker(dichtePunkte[0], {icon: hfsIcon, title: "AB-LWV"}).addTo(symboleLayer);
+                coordHtml += `<tr><td style="padding:4px; color:#e67e22; font-weight:bold;">AB-LWV (HFS 10 bar)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
+            } else {
+                if (hatStartPumpe) {
+                    let p1Icon = L.divIcon({ className: '', html: `<div class="icon-ts" style="background-color:#e74c3c; line-height:1.1; flex-direction:column;">P1</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
+                    L.marker(dichtePunkte[0], {icon: p1Icon, title: "Startpumpe P1"}).addTo(symboleLayer);
+                    coordHtml += `<tr><td style="padding:4px; color:#e74c3c; font-weight:bold;">${trasseTextStart}${pumpenStandardName} P1 (Start)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px; font-weight:bold;">0 m</td></tr>`;
+                } else {
+                    L.marker(dichtePunkte[0], {icon: startIcon, title: "Entnahme"}).addTo(symboleLayer);
+                    coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme (Hydrant/Druck)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
+                }
+            }
 
-            let prevPIdx = 0; // Hilfsvariable für die Distanzmessung zwischen den Stationen
+            let prevPIdx = 0; 
+
+            hfsBoosterIndizes.forEach((bIdx, idx) => {
+                let pNum = idx + 2; 
+                L.marker(dichtePunkte[bIdx], {icon: hfsIcon, title: `HFS Verstärker`}).addTo(symboleLayer);
+                let utmB = getUTM(dichtePunkte[bIdx].lat, dichtePunkte[bIdx].lng);
+                let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, bIdx, dichtePunkte);
+                let abgerundetDist = Math.round(distZuVorher);
+                let fStueck = Math.ceil(distZuVorher / 50);
+                coordHtml += `<tr><td style="padding:4px; color:#e67e22; font-weight:bold;">HFS Verstärker</td><td style="padding:4px;">${utmB.zone}</td><td style="padding:4px;">${utmB.ostwert}</td><td style="padding:4px;">${utmB.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${fStueck} F)</td></tr>`;
+                prevPIdx = bIdx;
+            });
+
+            if (ubergabeIndex > 0 && ubergabeIndex < dichtePunkte.length - 1) {
+                L.marker(dichtePunkte[ubergabeIndex], {icon: f5bIcon, title: "Verteiler F-5B"}).addTo(symboleLayer);
+                let uUtm = getUTM(dichtePunkte[ubergabeIndex].lat, dichtePunkte[ubergabeIndex].lng);
+                let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, ubergabeIndex, dichtePunkte);
+                let abgerundetDist = Math.round(distZuVorher);
+                let fStueck = Math.ceil(distZuVorher / 50); 
+                coordHtml += `<tr><td style="padding:4px; color:#f39c12; font-weight:bold;">Übergabe F-5B</td><td style="padding:4px;">${uUtm.zone}</td><td style="padding:4px;">${uUtm.ostwert}</td><td style="padding:4px;">${uUtm.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${fStueck} F)</td></tr>`;
+                prevPIdx = ubergabeIndex; 
+            }
 
             pumpenIndizes.forEach((pIdx, idx) => {
-                let pNum = idx + 1;
+                let pNum = idx + 1 + pumpenNummerOffset;
                 let bgColor = pufferbeckenZustand[pNum] ? 'background-color: #9b59b6;' : '';
-                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts" style="${bgColor}">P${pNum}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
                 
-                L.marker(dichtePunkte[pIdx], {icon: pIcon, title: `Pumpe P${pNum}`}).addTo(symboleLayer);
+                let pLabel = `P${pNum}`;
+                if (trassenMultiplikator > 1) pLabel += `<br><span style="font-size:8px;">[${trassenMultiplikator}x]</span>`;
+                
+                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts" style="${bgColor} line-height:1.1; flex-direction:column;">${pLabel}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
+                L.marker(dichtePunkte[pIdx], {icon: pIcon, title: `Station P${pNum}`}).addTo(symboleLayer);
+                
                 let utmP = getUTM(dichtePunkte[pIdx].lat, dichtePunkte[pIdx].lng);
-                
-                // Distanz und Schläuche zum vorherigen Punkt berechnen
                 let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, pIdx, dichtePunkte);
                 let abgerundetDist = Math.round(distZuVorher);
-                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * leitungsart; // Berücksichtigt auch Doppelleitungen!
+                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (trassenMultiplikator * leitungsart);
 
-                // NEU: Explizite Kennzeichnung (offen) oder (geschlossen) für den Ausdruck
-                let bezeichnung = pufferbeckenZustand[pNum] ? `Pumpe P${pNum} (offen)` : `Pumpe P${pNum} (geschlossen)`;
+                let trasseText = trassenMultiplikator > 1 ? `[${trassenMultiplikator}x] ` : "";
+                let bezeichnung = pufferbeckenZustand[pNum] ? `${trasseText}${pumpenStandardName} P${pNum} (offen)` : `${trasseText}${pumpenStandardName} P${pNum} (geschloss.)`;
                 let textColor = pufferbeckenZustand[pNum] ? '#9b59b6' : '#e74c3c';
                 
                 coordHtml += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${benoetigteSchlaeuche} B)</td></tr>`;
-                
-                prevPIdx = pIdx; // Setze den Startpunkt für die nächste Strecke auf diese Pumpe
+                prevPIdx = pIdx;
             });
 
-            // Verteiler am Ende
-            L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: verteilerIcon, title: "Verteiler"}).addTo(symboleLayer);
+            let isFZiel = (hfsCount > 0 && ubergabeIndex === -1);
+            let zielIconToUse = isFZiel ? f5bIcon : verteilerIcon;
+            L.marker(dichtePunkte[dichtePunkte.length - 1], {icon: zielIconToUse, title: "Ziel"}).addTo(symboleLayer);
             let zielIdx = dichtePunkte.length - 1;
             let utmZiel = getUTM(dichtePunkte[zielIdx].lat, dichtePunkte[zielIdx].lng);
             
-            // Distanz von letzter Pumpe (oder Entnahme) zum Verteiler
             let distZuVorherZiel = berechneStreckenMeterZwischen(prevPIdx, zielIdx, dichtePunkte);
             let abgerundetDistZiel = Math.round(distZuVorherZiel);
-            let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * leitungsart;
-
-            coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
+            
+            if (isFZiel) {
+                let fStueckZiel = Math.ceil(distZuVorherZiel / 50);
+                coordHtml += `<tr><td style="padding:4px; color:#f39c12; font-weight:bold;">F-5B (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${fStueckZiel} F)</td></tr></tbody></table>`;
+            } else {
+                let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * (trassenMultiplikator * leitungsart);
+                coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
+            }
 
             if (maximalerRuhedruck > 12.0) {
                 document.getElementById('maxRuhedruckAnzeige').innerText = maximalerRuhedruck.toFixed(1);
                 document.getElementById('druck-warnung-box').style.display = 'block';
             }
 
-            let anzahlSchlaeuche = Math.ceil(gesamtDistanz / 20) * leitungsart;
-            let reservePumpen = anzahlPumpen > 0 ? Math.ceil(anzahlPumpen / 4) : 0;
-            let reserveSchlaeuche = Math.ceil((gesamtDistanz * leitungsart) / 100);
+            let totalePumpen = (anzahlPumpenStationen + pumpenNummerOffset) * trassenMultiplikator;
+            let totaleBSchlaeuche = Math.ceil(distB / 20) * (trassenMultiplikator * leitungsart);
+            let reservePumpen = totalePumpen > 0 ? Math.ceil(totalePumpen / 4) : 0;
+            let reserveSchlaeuche = Math.ceil(totaleBSchlaeuche / 100);
 
-            document.getElementById('pumpenAnzeige').innerText = anzahlPumpen;
-            document.getElementById('schlauchAnzeige').innerText = anzahlSchlaeuche;
-            document.getElementById('laengeAnzeige').innerText = anzahlSchlaeuche * 20;
+            if (hfsCount > 0) {
+                document.getElementById('hfs-result-spalte').style.display = 'flex';
+                document.getElementById('hfsAnzeige').innerText = hfsEingesetzt; 
+                let reqFStueck = Math.ceil(distF / 50);
+                document.getElementById('fSchlauchAnzeige').innerText = reqFStueck;
+                document.getElementById('fLaengeAnzeige').innerText = reqFStueck * 50;
+            } else {
+                document.getElementById('hfs-result-spalte').style.display = 'none';
+            }
+
+            document.getElementById('trassen-result-spalte').style.display = (totaleBSchlaeuche > 0) ? 'flex' : 'none';
+            
+            document.getElementById('pumpenAnzeige').innerText = totalePumpen;
+            document.getElementById('schlauchAnzeige').innerText = totaleBSchlaeuche;
+            document.getElementById('laengeAnzeige').innerText = totaleBSchlaeuche * 20;
             document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
             document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
             document.getElementById('reserveLaengeAnzeige').innerText = reserveSchlaeuche * 20;
-            document.getElementById('gesamtPumpenAnzeige').innerText = anzahlPumpen + reservePumpen;
-            document.getElementById('gesamtSchlauchAnzeige').innerText = anzahlSchlaeuche + reserveSchlaeuche;
-            document.getElementById('gesamtLaengeAnzeige').innerText = (anzahlSchlaeuche + reserveSchlaeuche) * 20;
-            document.getElementById('druckbedarfAnzeige').innerText = gesamtDruckbedarf.toFixed(2);
+            document.getElementById('gesamtPumpenAnzeige').innerText = totalePumpen + reservePumpen;
+            document.getElementById('gesamtSchlauchAnzeige').innerText = totaleBSchlaeuche + reserveSchlaeuche;
+            document.getElementById('gesamtLaengeAnzeige').innerText = (totaleBSchlaeuche + reserveSchlaeuche) * 20;
             
-            let streckenKm = gesamtDistanz / 1000;
-            let vFahrt = 30; 
-            let tFahrt = (streckenKm / vFahrt) * 60 * 2; 
-            let ruestZeit = 4.0; 
-            let tFuell = 4000 / 800; 
-            let tAbgabe = 4000 / volumen; 
-            let umlaufZeit = ruestZeit + tFuell + tFahrt + tAbgabe;
-            let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabe) : 0;
-            document.getElementById('tlfAnzeige').innerText = tlfBedarf;
-
             berechnePendelverkehr();
-            
             document.getElementById('ergebnis-box').style.display = 'flex';
             
             if (pumpenIndizes.length > 0) {
                 document.getElementById('feintuning-wrapper').style.display = 'flex';
                 if (!manuelleVorgaben || rebuildUI) {
-                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben);
+                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben, pumpenNummerOffset);
                 }
             } else {
                 document.getElementById('feintuning-wrapper').style.display = 'none';
@@ -909,6 +1168,13 @@
                 }
             });
 
+            let tFahrt = (streckenKm / v) * 60 * 2; 
+            let tFuellTLF = 4000 / 800; 
+            let tAbgabeTLF = 4000 / geforderterVolumen; 
+            let umlaufZeit = 4.0 + tFuellTLF + tFahrt + tAbgabeTLF;
+            let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabeTLF) : 0;
+            document.getElementById('tlfAnzeige').innerText = tlfBedarf;
+
             let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
             if (gesamtErtrag > 0) {
                 let statusColor = gesamtErtrag >= geforderterVolumen ? "#2ecc71" : "#e74c3c";
@@ -925,25 +1191,23 @@
             }
         }
 
-        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben = null) {
+        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben = null, pumpenNummerOffset = 0) {
             let container = document.getElementById('slider-container');
             
             let alteSlider = {};
-            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
-            for(let i=1; i<=anzahl; i++) {
-                let s = document.getElementById(`slider_p_${i}`);
-                if(s) {
-                    alteSlider[i] = {
-                        max: parseInt(s.max),
-                        val: parseInt(s.value)
-                    };
-                }
-            }
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            alleSlider.forEach(s => {
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                alteSlider[id] = {
+                    max: parseInt(s.max),
+                    val: parseInt(s.value)
+                };
+            });
 
             container.innerHTML = "";
             
             pumpenIndizes.forEach((pIdx, idx) => {
-                let pNum = idx + 1;
+                let pNum = idx + 1 + pumpenNummerOffset;
                 let ermittelteDistanz = Math.round(berechneStreckenMeterBis(pIdx, dichtePunkte));
                 let minMeter = 50;
                 
@@ -969,7 +1233,7 @@
                 zeile.style.gap = "8px";
                 zeile.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">P${pNum}:</span>
+                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">Stat. ${pNum}:</span>
                         <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
                         <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${currentVal} m</span>
                     </div>
@@ -982,7 +1246,6 @@
             });
         }
 
-        // NEU: Hilfsfunktion zur Distanzberechnung ZWISCHEN zwei beliebigen Punkten der Route
         function berechneStreckenMeterZwischen(idx1, idx2, dichtePunkte) {
             let m = 0;
             for(let i=idx1+1; i<=idx2; i++) m += dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
@@ -997,32 +1260,154 @@
 
         function togglePufferbecken(pNum, isChecked) {
             pufferbeckenZustand[pNum] = isChecked;
-            
             let vorschuesse = {};
-            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
-            
-            for(let i=1; i<=anzahl; i++) {
-                let s = document.getElementById(`slider_p_${i}`);
-                if(s) {
-                    if (i < pNum) {
-                        vorschuesse[i] = parseInt(s.value);
-                    }
-                }
-            }
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            alleSlider.forEach(s => {
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                if (id < pNum) vorschuesse[id] = parseInt(s.value);
+            });
             auswerten(vorschuesse, true);
         }
 
         function aktualisiereSliderLabel(pNum, val) {
             document.getElementById(`label_p_${pNum}`).innerText = val + " m";
-            
             let vorschuesse = {};
-            let anzahl = document.querySelectorAll('[id^="slider_p_"]').length;
-            for(let i=1; i<=anzahl; i++) {
-                let s = document.getElementById(`slider_p_${i}`);
-                if(s) vorschuesse[i] = parseInt(s.value);
-            }
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            alleSlider.forEach(s => {
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                vorschuesse[id] = parseInt(s.value);
+            });
             auswerten(vorschuesse, false);
         }
+        
+        function closeAuthModal() {
+            document.getElementById('auth-modal').style.display = 'none';
+            // Zwingt die Karte sich richtig zu dimensionieren, sobald das Fenster weg ist
+            setTimeout(() => { map.invalidateSize(); }, 100); 
+        }
+
+        async function register() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const msg = document.getElementById('auth-message');
+            
+            if(!email || !password) return msg.innerText = "Bitte E-Mail und Passwort eingeben.";
+            
+            if(!supabaseClient) return msg.innerText = "Fehler: Supabase nicht verbunden.";
+
+            msg.innerText = "Lade...";
+            const { data, error } = await supabaseClient.auth.signUp({ email: email, password: password });
+            
+            if (error) {
+                msg.innerText = "Fehler: " + error.message;
+            } else {
+                msg.style.color = "#2ecc71";
+                msg.innerText = "Erfolgreich registriert! Du bist nun eingeloggt.";
+                setTimeout(closeAuthModal, 1500);
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const msg = document.getElementById('auth-message');
+            
+            if(!email || !password) return msg.innerText = "Bitte E-Mail und Passwort eingeben.";
+            
+            if(!supabaseClient) return msg.innerText = "Fehler: Supabase nicht verbunden.";
+
+            msg.innerText = "Lade...";
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+            
+            if (error) {
+                msg.innerText = "Fehler: " + error.message;
+            } else {
+                closeAuthModal();
+            }
+        }
+
+        async function logout() {
+            if(supabaseClient) await supabaseClient.auth.signOut();
+            location.reload(); 
+        }
+
+        if (supabaseClient) {
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (session) {
+                    currentUser = session.user;
+                    document.getElementById('user-email-display').innerText = currentUser.email;
+                    document.getElementById('login-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                    
+                    const { data, error } = await supabaseClient
+                        .from('profiles')
+                        .select('is_premium')
+                        .eq('id', currentUser.id)
+                        .single();
+                        
+                    if (data) {
+                        isPremium = data.is_premium;
+                        if (isPremium) {
+                            document.getElementById('user-email-display').innerText += " ⭐️ PRO";
+                        }
+                    }
+                    wendePremiumSperrenAn();
+                    aktualisiereSpeicherDropdown();
+                } else {
+                    currentUser = null;
+                    isPremium = false;
+                    wendePremiumSperrenAn();
+                    aktualisiereSpeicherDropdown();
+                }
+            });
+        }
+
+        function wendePremiumSperrenAn() {
+            const hfsInput = document.getElementById('hfsCountInput');
+            const feintuningBtn = document.getElementById('feintuning-toggle-btn');
+            const pendelverkehrBtn = document.getElementById('pendelverkehr-toggle-btn');
+            
+            if (!isPremium) {
+                hfsInput.disabled = true;
+                hfsInput.title = "Nur in der PRO-Version";
+                hfsInput.style.backgroundColor = "#e0e0e0";
+                
+                let volSelect = document.getElementById('volumenInput');
+                for (let i = 0; i < volSelect.options.length; i++) {
+                    if (parseInt(volSelect.options[i].value) > 2000) {
+                        volSelect.options[i].disabled = true;
+                        if (!volSelect.options[i].text.includes("🔒")) {
+                            volSelect.options[i].text += " 🔒";
+                        }
+                    }
+                }
+
+                feintuningBtn.style.opacity = "0.5";
+                if (!feintuningBtn.innerText.includes("🔒")) feintuningBtn.innerText = "🔒 " + feintuningBtn.innerText;
+                feintuningBtn.onclick = zeigePremiumWerbung;
+                
+                pendelverkehrBtn.style.opacity = "0.5";
+                if (!pendelverkehrBtn.innerText.includes("🔒")) pendelverkehrBtn.innerText = "🔒 " + pendelverkehrBtn.innerText;
+                pendelverkehrBtn.onclick = zeigePremiumWerbung;
+            }
+        }
+
+        function zeigePremiumWerbung() {
+            alert("Diese Funktion ist nur in der Premium-Version verfügbar! Hier wird später der Bezahl-Link zu Stripe eingebaut.");
+        }
+
+        window.onload = async function() {
+            if (supabaseClient) {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    document.getElementById('auth-modal').style.display = 'flex';
+                }
+            } else {
+                // Falls Supabase fehlschlägt, erlaube trotzdem die Free-Nutzung
+                document.getElementById('auth-modal').style.display = 'flex';
+            }
+            aktualisiereSpeicherDropdown(); 
+        };       
     </script>
 </body>
 </html>
