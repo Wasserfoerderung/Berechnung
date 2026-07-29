@@ -581,7 +581,7 @@
         var verteilerIcon = L.divIcon({ className: '', html: '<div class="icon-verteiler">V</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
         var f5bIcon = L.divIcon({ className: '', html: '<div class="icon-f5b">F-5B</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
 
-        var GpsButton = L.Control.extend({
+		var GpsButton = L.Control.extend({
             options: { position: 'topleft' },
             onAdd: function (map) {
                 var container = L.DomUtil.create('div', 'leaflet-control-gps');
@@ -589,10 +589,7 @@
                 container.title = 'Meinen Standort ermitteln';
                 container.onclick = function(e) {
                     e.stopPropagation();
-                    if (!isPremium) {
-                        zeigePremiumWerbung();
-                        return;
-                    }
+                    // NEU: Keine Premium-Sperre mehr hier!
                     map.locate({setView: true, maxZoom: 16});
                 };
                 return container;
@@ -601,7 +598,7 @@
         map.addControl(new GpsButton());
 
         map.on('locationfound', function(e) {
-            if (!isPremium) return;
+            // NEU: Premium-Sperre entfernt, jeder darf GPS nutzen
             var meinStandort = e.latlng;
             L.circle(meinStandort, { radius: e.accuracy / 2, color: '#3498db', fillOpacity: 0.15 }).addTo(knotenpunkteLayer);
             handleNeuerPunkt(meinStandort);
@@ -701,11 +698,24 @@
             }
         }
 
-        async function streckeSpeichern() {
+		async function streckeSpeichern() {
             let name = document.getElementById('streckenNameInput').value.trim();
             if (name === "" || punkteListe.length < 2) { alert("Name fehlt oder keine Strecke."); return; }
 
             if (currentUser && supabaseClient) {
+                // NEU: Limit-Check für Supabase Cloud (Max 1 Strecke in Free)
+                if (!isPremium) {
+                    let { count } = await supabaseClient.from('routes').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id);
+                    let { data: existing } = await supabaseClient.from('routes').select('id').eq('user_id', currentUser.id).eq('name', name);
+                    let isOverwrite = existing && existing.length > 0;
+
+                    if (!isOverwrite && count >= 1) {
+                        alert("In der Free-Version kannst du maximal 1 Strecke speichern. Lösche deine alte Strecke oder schalte PRO frei, um unbegrenzt zu speichern.");
+                        zeigePremiumWerbung();
+                        return;
+                    }
+                }
+
                 // In Supabase speichern
                 let { error } = await supabaseClient
                     .from('routes')
@@ -714,13 +724,21 @@
                 if (error) {
                     alert("Fehler beim Speichern: " + error.message);
                 } else {
-                    alert("In Cloud gespeichert!");
+                    alert("In der Cloud gespeichert!");
                     aktualisiereSpeicherDropdown();
                 }
             } else {
                 // Lokaler Speicher (Fallback)
                 try {
                     let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+                    
+                    // NEU: Limit-Check für lokalen Speicher (Max 1 Strecke in Free)
+                    if (!isPremium && !gespeicherteStrecken.hasOwnProperty(name) && Object.keys(gespeicherteStrecken).length >= 1) {
+                        alert("In der Free-Version kannst du maximal 1 Strecke speichern. Lösche deine alte Strecke oder schalte PRO frei, um unbegrenzt zu speichern.");
+                        zeigePremiumWerbung();
+                        return;
+                    }
+
                     gespeicherteStrecken[name] = punkteListe;
                     localStorage.setItem('feuerwehr_strecken', JSON.stringify(gespeicherteStrecken));
                     aktualisiereSpeicherDropdown();
@@ -1176,7 +1194,15 @@
             let tAbgabeTLF = 4000 / geforderterVolumen; 
             let umlaufZeit = 4.0 + tFuellTLF + tFahrt + tAbgabeTLF;
             let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabeTLF) : 0;
-            document.getElementById('tlfAnzeige').innerText = tlfBedarf;
+            
+            // NEU: Verdeckt die Zahl mit einem Schloss im Free-Modus
+            if (!isPremium) {
+                document.getElementById('tlfAnzeige').innerHTML = '<span style="cursor:pointer;" onclick="zeigePremiumWerbung()" title="Nur in der PRO-Version">🔒</span>';
+            } else {
+                document.getElementById('tlfAnzeige').innerText = tlfBedarf;
+            }
+
+            let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
 
             let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
             if (gesamtErtrag > 0) {
