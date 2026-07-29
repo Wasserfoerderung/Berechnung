@@ -660,9 +660,8 @@
         }
 
         // --- SUPABASE SPEICHERUNG / LADEN ---
-        async function aktualisiereSpeicherDropdown() {
+		async function aktualisiereSpeicherDropdown() {
             let select = document.getElementById('gespeicherteStreckenSelect');
-            select.innerHTML = '<option value="">-- Keine gewählt --</option>';
 
             if (currentUser && supabaseClient) {
                 // Cloud-Speicher über Supabase
@@ -672,6 +671,9 @@
                     .eq('user_id', currentUser.id);
 
                 if (!error && data) {
+                    // FIX: Dropdown erst HIER leeren, bevor wir neu befüllen
+                    select.innerHTML = '<option value="">-- Keine gewählt --</option>';
+                    
                     data.forEach(row => {
                         let opt = document.createElement('option');
                         opt.value = row.id;
@@ -684,6 +686,7 @@
             } else {
                 // Fallback: localStorage gesichert gegen Browser-Blockaden
                 try {
+                    select.innerHTML = '<option value="">-- Keine gewählt --</option>';
                     let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
                     for (let name in gespeicherteStrecken) {
                         let opt = document.createElement('option'); 
@@ -1337,6 +1340,7 @@
                     currentUser = session.user;
                     document.getElementById('user-email-display').innerText = currentUser.email;
                     document.getElementById('login-btn').style.display = 'none';
+                    document.getElementById('login-btn').style.display = 'none';
                     document.getElementById('logout-btn').style.display = 'inline-block';
                     
                     const { data, error } = await supabaseClient
@@ -1345,12 +1349,15 @@
                         .eq('id', currentUser.id)
                         .single();
                         
-                    if (data) {
-                        isPremium = data.is_premium;
-                        if (isPremium) {
-                            document.getElementById('user-email-display').innerText += " ⭐️ PRO";
-                        }
+					if (data) {
+                    isPremium = data.is_premium;
+                    if (isPremium) {
+                        // FIX: Wir ersetzen den kompletten Text, statt ihn anzuhängen
+                        document.getElementById('user-email-display').innerText = currentUser.email + " ⭐️ PRO";
+                    } else {
+                        document.getElementById('user-email-display').innerText = currentUser.email;
                     }
+                }
                     wendePremiumSperrenAn();
                     aktualisiereSpeicherDropdown();
                 } else {
@@ -1396,7 +1403,7 @@
             alert("Diese Funktion ist nur in der Premium-Version verfügbar! Hier wird später der Bezahl-Link zu Stripe eingebaut.");
         }
 
-        window.onload = async function() {
+		window.onload = async function() {
             if (supabaseClient) {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) {
@@ -1406,8 +1413,8 @@
                 // Falls Supabase fehlschlägt, erlaube trotzdem die Free-Nutzung
                 document.getElementById('auth-modal').style.display = 'flex';
             }
-            aktualisiereSpeicherDropdown(); 
-        };       
+            // Zeile gelöscht, da Supabase das Dropdown nun automatisch über den AuthState steuert
+        };   
     </script>
 </body>
 </html>
