@@ -1151,7 +1151,7 @@
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
-        function berechnePendelverkehr() {
+       function berechnePendelverkehr() {
             if (gesamtDistanz <= 0) return;
 
             let streckenKm = gesamtDistanz / 1000;
@@ -1195,16 +1195,16 @@
             let umlaufZeit = 4.0 + tFuellTLF + tFahrt + tAbgabeTLF;
             let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabeTLF) : 0;
             
-            // NEU: Verdeckt die Zahl mit einem Schloss im Free-Modus
+            // Verdeckt die Zahl mit einem Schloss im Free-Modus
             if (!isPremium) {
                 document.getElementById('tlfAnzeige').innerHTML = '<span style="cursor:pointer;" onclick="zeigePremiumWerbung()" title="Nur in der PRO-Version">🔒</span>';
             } else {
                 document.getElementById('tlfAnzeige').innerText = tlfBedarf;
             }
 
+            // HIER WURDE DIE DOPPELTE DEKLARATION ENTFERNT
             let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
-
-            let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
+            
             if (gesamtErtrag > 0) {
                 let statusColor = gesamtErtrag >= geforderterVolumen ? "#2ecc71" : "#e74c3c";
                 let statusText = gesamtErtrag >= geforderterVolumen ? "✅ Bedarf gedeckt" : "⚠️ Bedarf nicht gedeckt (Schlauchleitung nötig)";
@@ -1218,61 +1218,6 @@
             } else {
                 anzeigeDiv.innerHTML = `<i>Bitte Anzahl der Fahrzeuge im Pendelverkehr eintragen...</i>`;
             }
-        }
-
-        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben = null, pumpenNummerOffset = 0) {
-            let container = document.getElementById('slider-container');
-            
-            let alteSlider = {};
-            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
-            alleSlider.forEach(s => {
-                let id = parseInt(s.id.replace('slider_p_', ''));
-                alteSlider[id] = {
-                    max: parseInt(s.max),
-                    val: parseInt(s.value)
-                };
-            });
-
-            container.innerHTML = "";
-            
-            pumpenIndizes.forEach((pIdx, idx) => {
-                let pNum = idx + 1 + pumpenNummerOffset;
-                let ermittelteDistanz = Math.round(berechneStreckenMeterBis(pIdx, dichtePunkte));
-                let minMeter = 50;
-                
-                let maxDistM = ermittelteDistanz;
-                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined && alteSlider[pNum]) {
-                    maxDistM = Math.max(ermittelteDistanz, alteSlider[pNum].max);
-                }
-
-                let currentVal = ermittelteDistanz;
-                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined) {
-                    currentVal = manuelleVorgaben[pNum];
-                }
-                
-                if (currentVal > maxDistM) currentVal = maxDistM;
-                if (currentVal < minMeter) currentVal = minMeter;
-
-                let isChecked = pufferbeckenZustand[pNum] ? "checked" : "";
-
-                let zeile = document.createElement('div');
-                zeile.className = "pumpe-slider-zeile";
-                zeile.style.flexDirection = "column";
-                zeile.style.alignItems = "stretch";
-                zeile.style.gap = "8px";
-                zeile.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">Stat. ${pNum}:</span>
-                        <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
-                        <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${currentVal} m</span>
-                    </div>
-                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
-                        <label for="check_p_${pNum}" style="font-size: 11px; cursor:pointer; color:#bdc3c7;">↳ Offene Förderstrecke (Becken / 0,1 bar Eingang)</label>
-                        <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
-                    </div>
-                `;
-                container.appendChild(zeile);
-            });
         }
 
         function berechneStreckenMeterZwischen(idx1, idx2, dichtePunkte) {
