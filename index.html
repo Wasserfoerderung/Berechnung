@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script async src="https://js.stripe.com/v3/pricing-table.js"></script>
     
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
@@ -1370,22 +1371,52 @@
             }
         }
 
-        function zeigePremiumWerbung() {
-            alert("Diese Funktion ist nur in der Premium-Version verfügbar! Hier wird später der Bezahl-Link zu Stripe eingebaut.");
+		function zeigePremiumWerbung() {
+            if (!currentUser) {
+                alert("Bitte logge dich zuerst ein oder registriere dich, bevor du auf PRO upgradest.");
+                document.getElementById('auth-modal').style.display = 'flex';
+                return;
+            }
+
+            // Modal sichtbar machen, damit das Element Maße hat
+            document.getElementById('stripe-modal').style.display = 'flex';
+
+            // Preistabelle erst jetzt dynamisch erzeugen und einfügen
+            const container = document.getElementById('stripe-table-container');
+            container.innerHTML = `
+                <stripe-pricing-table 
+                  id="stripe-pricing-table-element"
+                  pricing-table-id="prctbl_1TycJBFstrnh7UIGwvjQlUAO"
+                  publishable-key="pk_test_51TybU2Fstrnh7UIGSdn61o8jaZS22WN0PlWHGkiiYWalArvL48CdOAo0jaR3JHDcv8KvvwTwa3WFnmKUHB69ddzK00WQVIDjIB"
+                  client-reference-id="${currentUser.id}"
+                  customer-email="${currentUser.email}">
+                </stripe-pricing-table>
+            `;
+
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
-		window.onload = async function() {
-            if (supabaseClient) {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (!session) {
-                    document.getElementById('auth-modal').style.display = 'flex';
-                }
-            } else {
-                // Falls Supabase fehlschlägt, erlaube trotzdem die Free-Nutzung
-                document.getElementById('auth-modal').style.display = 'flex';
-            }
-            // Zeile gelöscht, da Supabase das Dropdown nun automatisch über den AuthState steuert
+        function closeStripeModal() {
+            document.getElementById('stripe-modal').style.display = 'none';
+            // Inhalt beim Schließen leeren, damit sie beim nächsten Öffnen frisch geladen wird
+            document.getElementById('stripe-table-container').innerHTML = "";
+            setTimeout(() => { map.invalidateSize(); }, 100);
         };   
     </script>
+
+	<!-- Modal für die Stripe Preistabelle -->
+	<div id="stripe-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; box-sizing: border-box;">
+		<div style="background: white; border-radius: 12px; width: 100%; max-width: 900px; padding: 20px; position: relative; box-shadow: 0 5px 25px rgba(0,0,0,0.5);">
+        
+        <button onclick="closeStripeModal()" style="position: absolute; top: 15px; right: 15px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; font-size: 16px;">✕</button>
+        
+        <h2 style="margin-top: 0; color: #2c3e50; text-align: center;">Wähle deine „Abschnitt Wasser Pro“ Lizenz</h2>
+        <p style="text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Schalte alle Einsatz-Tools, HFS-Systeme, Pendelverkehrs-Rechner & den unbegrenzten Cloud-Speicher frei.</p>
+        
+		<div id="stripe-table-container"></div>
+
+    </div>
+</div>
+
 </body>
 </html>
