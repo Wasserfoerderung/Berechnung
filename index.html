@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-	<script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
     
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
@@ -499,7 +499,6 @@
         const _SUPABASE_URL = 'https://rjkdtshqchmzkqgekhak.supabase.co';
         const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqa2R0c2hxY2htemtxZ2VraGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjMzMjgsImV4cCI6MjA5ODkzOTMyOH0.e0cfw0eP1GDTzyIXjcgt9ToZXUwAL9QdN3zg895R0HA';
 
-        // Namenskonflikt behoben: Die Variable heißt nun supabaseClient
         let supabaseClient = null;
         try {
             supabaseClient = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
@@ -582,7 +581,7 @@
         var verteilerIcon = L.divIcon({ className: '', html: '<div class="icon-verteiler">V</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
         var f5bIcon = L.divIcon({ className: '', html: '<div class="icon-f5b">F-5B</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
 
-		var GpsButton = L.Control.extend({
+        var GpsButton = L.Control.extend({
             options: { position: 'topleft' },
             onAdd: function (map) {
                 var container = L.DomUtil.create('div', 'leaflet-control-gps');
@@ -590,7 +589,6 @@
                 container.title = 'Meinen Standort ermitteln';
                 container.onclick = function(e) {
                     e.stopPropagation();
-                    // NEU: Keine Premium-Sperre mehr hier!
                     map.locate({setView: true, maxZoom: 16});
                 };
                 return container;
@@ -599,7 +597,6 @@
         map.addControl(new GpsButton());
 
         map.on('locationfound', function(e) {
-            // NEU: Premium-Sperre entfernt, jeder darf GPS nutzen
             var meinStandort = e.latlng;
             L.circle(meinStandort, { radius: e.accuracy / 2, color: '#3498db', fillOpacity: 0.15 }).addTo(knotenpunkteLayer);
             handleNeuerPunkt(meinStandort);
@@ -657,32 +654,26 @@
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
-        // --- SUPABASE SPEICHERUNG / LADEN ---
-		async function aktualisiereSpeicherDropdown() {
+        async function aktualisiereSpeicherDropdown() {
             let select = document.getElementById('gespeicherteStreckenSelect');
 
             if (currentUser && supabaseClient) {
-                // Cloud-Speicher über Supabase
                 let { data, error } = await supabaseClient
                     .from('routes')
                     .select('id, name, route_data')
                     .eq('user_id', currentUser.id);
 
                 if (!error && data) {
-                    // FIX: Dropdown erst HIER leeren, bevor wir neu befüllen
                     select.innerHTML = '<option value="">-- Keine gewählt --</option>';
-                    
                     data.forEach(row => {
                         let opt = document.createElement('option');
                         opt.value = row.id;
                         opt.innerText = row.name;
-                        // Wir speichern die rohen Koordinaten als Data-Attribut im Option-Tag
                         opt.dataset.route = JSON.stringify(row.route_data);
                         select.appendChild(opt);
                     });
                 }
             } else {
-                // Fallback: localStorage gesichert gegen Browser-Blockaden
                 try {
                     select.innerHTML = '<option value="">-- Keine gewählt --</option>';
                     let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
@@ -699,12 +690,11 @@
             }
         }
 
-		async function streckeSpeichern() {
+        async function streckeSpeichern() {
             let name = document.getElementById('streckenNameInput').value.trim();
             if (name === "" || punkteListe.length < 2) { alert("Name fehlt oder keine Strecke."); return; }
 
             if (currentUser && supabaseClient) {
-                // NEU: Limit-Check für Supabase Cloud (Max 1 Strecke in Free)
                 if (!isPremium) {
                     let { count } = await supabaseClient.from('routes').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id);
                     let { data: existing } = await supabaseClient.from('routes').select('id').eq('user_id', currentUser.id).eq('name', name);
@@ -717,7 +707,6 @@
                     }
                 }
 
-                // In Supabase speichern
                 let { error } = await supabaseClient
                     .from('routes')
                     .insert([{ user_id: currentUser.id, name: name, route_data: punkteListe }]);
@@ -729,11 +718,9 @@
                     aktualisiereSpeicherDropdown();
                 }
             } else {
-                // Lokaler Speicher (Fallback)
                 try {
                     let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
                     
-                    // NEU: Limit-Check für lokalen Speicher (Max 1 Strecke in Free)
                     if (!isPremium && !gespeicherteStrecken.hasOwnProperty(name) && Object.keys(gespeicherteStrecken).length >= 1) {
                         alert("In der Free-Version kannst du maximal 1 Strecke speichern. Lösche deine alte Strecke oder schalte PRO frei, um unbegrenzt zu speichern.");
                         zeigePremiumWerbung();
@@ -774,7 +761,6 @@
 
             if (confirm("Strecke löschen?")) {
                 if (currentUser && supabaseClient) {
-                    // Aus Supabase löschen
                     let { error } = await supabaseClient
                         .from('routes')
                         .delete()
@@ -785,7 +771,6 @@
                         return;
                     }
                 } else {
-                    // Aus lokalem Speicher löschen
                     try {
                         let gespeicherteStrecken = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
                         delete gespeicherteStrecken[routeIdOrName];
@@ -885,15 +870,12 @@
             document.getElementById('hoehenInput').value = (nettoHoehenunterschied > 0 ? "+" : "") + Math.round(nettoHoehenunterschied) + " m";
             document.getElementById('api-status').innerText = "✅ Geladen";
 
-            // PARAMETER AUSLESE
             let volumen = parseInt(document.getElementById('volumenInput').value);
             let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
-            
             let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
             let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
             let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
             let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
-            
             let hfsCount = parseInt(document.getElementById('hfsCountInput').value) || 0;
             let hfsMode = 10.0;
 
@@ -904,7 +886,6 @@
             let anzahlPumpenStationen = 0;
             let pumpenIndizes = [];
             let indexLetztePumpe = 0;
-            
             let fSchlauchPhase = (hfsCount > 0);
             let hfsVerfuegbar = hfsCount;
             let hfsEingesetzt = fSchlauchPhase ? 1 : 0;
@@ -919,7 +900,6 @@
             }
 
             let pumpenNummerOffset = hatStartPumpe ? 1 : 0;
-
             let maxFDirekt = 1800; 
             let distF = 0;
             let distF_lokal = 0; 
@@ -1038,7 +1018,6 @@
             }
 
             let prevPIdx = 0; 
-
             hfsBoosterIndizes.forEach((bIdx, idx) => {
                 let pNum = idx + 2; 
                 L.marker(dichtePunkte[bIdx], {icon: hfsIcon, title: `HFS Verstärker`}).addTo(symboleLayer);
@@ -1133,23 +1112,86 @@
             document.getElementById('gesamtLaengeAnzeige').innerText = (totaleBSchlaeuche + reserveSchlaeuche) * 20;
             
             berechnePendelverkehr();
-            document.getElementById('ergebnis-box').style.display = 'flex';
             
-            if (pumpenIndizes.length > 0) {
-                document.getElementById('feintuning-wrapper').style.display = 'flex';
-                if (!manuelleVorgaben || rebuildUI) {
-                    aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben, pumpenNummerOffset);
-                }
-            } else {
-                document.getElementById('feintuning-wrapper').style.display = 'none';
-            }
+            document.getElementById('ergebnis-box').style.display = 'flex';
             document.getElementById('pendelverkehr-wrapper').style.display = 'flex';
-
+            
             document.getElementById('koordinaten-liste').innerHTML = coordHtml;
             document.getElementById('koordinaten-box').style.display = 'flex';
             document.getElementById('koordinaten-liste').style.display = 'none';
 
+            if (pumpenIndizes.length > 0) {
+                document.getElementById('feintuning-wrapper').style.display = 'flex';
+                if (!manuelleVorgaben || rebuildUI) {
+                    try {
+                        aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben, pumpenNummerOffset);
+                    } catch (e) {
+                        console.error("Fehler beim Slider-Aufbau:", e);
+                    }
+                }
+            } else {
+                document.getElementById('feintuning-wrapper').style.display = 'none';
+            }
+
             setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+        function aufbauFeintuningSlider(pumpenIndizes, dichtePunkte, manuelleVorgaben = null, pumpenNummerOffset = 0) {
+            let container = document.getElementById('slider-container');
+            if (!container) return; 
+
+            let alteSlider = {};
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            
+            for (let i = 0; i < alleSlider.length; i++) {
+                let s = alleSlider[i];
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                alteSlider[id] = {
+                    max: parseInt(s.max),
+                    val: parseInt(s.value)
+                };
+            }
+
+            container.innerHTML = "";
+            
+            pumpenIndizes.forEach((pIdx, idx) => {
+                let pNum = idx + 1 + pumpenNummerOffset;
+                let ermittelteDistanz = Math.round(berechneStreckenMeterBis(pIdx, dichtePunkte));
+                let minMeter = 50;
+                
+                let maxDistM = ermittelteDistanz;
+                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined && alteSlider[pNum]) {
+                    maxDistM = Math.max(ermittelteDistanz, alteSlider[pNum].max);
+                }
+
+                let currentVal = ermittelteDistanz;
+                if (manuelleVorgaben && manuelleVorgaben[pNum] !== undefined) {
+                    currentVal = manuelleVorgaben[pNum];
+                }
+                
+                if (currentVal > maxDistM) currentVal = maxDistM;
+                if (currentVal < minMeter) currentVal = minMeter;
+
+                let isChecked = pufferbeckenZustand[pNum] ? "checked" : "";
+
+                let zeile = document.createElement('div');
+                zeile.className = "pumpe-slider-zeile";
+                zeile.style.flexDirection = "column";
+                zeile.style.alignItems = "stretch";
+                zeile.style.gap = "8px";
+                zeile.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">Stat. ${pNum}:</span>
+                        <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
+                        <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${currentVal} m</span>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
+                        <label for="check_p_${pNum}" style="font-size: 11px; cursor:pointer; color:#bdc3c7;">↳ Offene Förderstrecke (Becken / 0,1 bar Eingang)</label>
+                        <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                    </div>
+                `;
+                container.appendChild(zeile);
+            });
         }
 
        function berechnePendelverkehr() {
@@ -1196,14 +1238,12 @@
             let umlaufZeit = 4.0 + tFuellTLF + tFahrt + tAbgabeTLF;
             let tlfBedarf = gesamtDistanz > 0 ? Math.ceil(umlaufZeit / tAbgabeTLF) : 0;
             
-            // Verdeckt die Zahl mit einem Schloss im Free-Modus
             if (!isPremium) {
                 document.getElementById('tlfAnzeige').innerHTML = '<span style="cursor:pointer;" onclick="zeigePremiumWerbung()" title="Nur in der PRO-Version">🔒</span>';
             } else {
                 document.getElementById('tlfAnzeige').innerText = tlfBedarf;
             }
 
-            // HIER WURDE DIE DOPPELTE DEKLARATION ENTFERNT
             let anzeigeDiv = document.getElementById('pv-ergebnis-anzeige');
             
             if (gesamtErtrag > 0) {
@@ -1257,7 +1297,6 @@
         
         function closeAuthModal() {
             document.getElementById('auth-modal').style.display = 'none';
-            // Zwingt die Karte sich richtig zu dimensionieren, sobald das Fenster weg ist
             setTimeout(() => { map.invalidateSize(); }, 100); 
         }
 
@@ -1312,7 +1351,6 @@
                     currentUser = session.user;
                     document.getElementById('user-email-display').innerText = currentUser.email;
                     document.getElementById('login-btn').style.display = 'none';
-                    document.getElementById('login-btn').style.display = 'none';
                     document.getElementById('logout-btn').style.display = 'inline-block';
                     
                     const { data, error } = await supabaseClient
@@ -1321,15 +1359,14 @@
                         .eq('id', currentUser.id)
                         .single();
                         
-					if (data) {
-                    isPremium = data.is_premium;
-                    if (isPremium) {
-                        // FIX: Wir ersetzen den kompletten Text, statt ihn anzuhängen
-                        document.getElementById('user-email-display').innerText = currentUser.email + " ⭐️ PRO";
-                    } else {
-                        document.getElementById('user-email-display').innerText = currentUser.email;
+                    if (data) {
+                        isPremium = data.is_premium;
+                        if (isPremium) {
+                            document.getElementById('user-email-display').innerText = currentUser.email + " ⭐️ PRO";
+                        } else {
+                            document.getElementById('user-email-display').innerText = currentUser.email;
+                        }
                     }
-                }
                     wendePremiumSperrenAn();
                     aktualisiereSpeicherDropdown();
                 } else {
@@ -1345,13 +1382,13 @@
             const hfsInput = document.getElementById('hfsCountInput');
             const feintuningBtn = document.getElementById('feintuning-toggle-btn');
             const pendelverkehrBtn = document.getElementById('pendelverkehr-toggle-btn');
+            let volSelect = document.getElementById('volumenInput');
             
             if (!isPremium) {
                 hfsInput.disabled = true;
                 hfsInput.title = "Nur in der PRO-Version";
                 hfsInput.style.backgroundColor = "#e0e0e0";
                 
-                let volSelect = document.getElementById('volumenInput');
                 for (let i = 0; i < volSelect.options.length; i++) {
                     if (parseInt(volSelect.options[i].value) > 2000) {
                         volSelect.options[i].disabled = true;
@@ -1368,20 +1405,36 @@
                 pendelverkehrBtn.style.opacity = "0.5";
                 if (!pendelverkehrBtn.innerText.includes("🔒")) pendelverkehrBtn.innerText = "🔒 " + pendelverkehrBtn.innerText;
                 pendelverkehrBtn.onclick = zeigePremiumWerbung;
+            } else {
+                // PRO VERSION AKTIV - Alle Sperren entfernen!
+                hfsInput.disabled = false;
+                hfsInput.title = "";
+                hfsInput.style.backgroundColor = "#fff";
+                
+                for (let i = 0; i < volSelect.options.length; i++) {
+                    volSelect.options[i].disabled = false;
+                    volSelect.options[i].text = volSelect.options[i].text.replace(" 🔒", "");
+                }
+
+                feintuningBtn.style.opacity = "1";
+                feintuningBtn.innerText = feintuningBtn.innerText.replace("🔒 ", "");
+                feintuningBtn.onclick = function() { toggleBereich('feintuning-box', this, '🎛️ Pumpen-Standorte feinjustieren (optional)'); };
+                
+                pendelverkehrBtn.style.opacity = "1";
+                pendelverkehrBtn.innerText = pendelverkehrBtn.innerText.replace("🔒 ", "");
+                pendelverkehrBtn.onclick = function() { toggleBereich('pendelverkehr-box', this, '🚒 Pendelverkehr-Logistik'); };
             }
         }
 
-		function zeigePremiumWerbung() {
+        function zeigePremiumWerbung() {
             if (!currentUser) {
                 alert("Bitte logge dich zuerst ein oder registriere dich, bevor du auf PRO upgradest.");
                 document.getElementById('auth-modal').style.display = 'flex';
                 return;
             }
 
-            // Modal sichtbar machen, damit das Element Maße hat
             document.getElementById('stripe-modal').style.display = 'flex';
 
-            // Preistabelle erst jetzt dynamisch erzeugen und einfügen
             const container = document.getElementById('stripe-table-container');
             container.innerHTML = `
                 <stripe-pricing-table 
@@ -1398,22 +1451,21 @@
 
         function closeStripeModal() {
             document.getElementById('stripe-modal').style.display = 'none';
-            // Inhalt beim Schließen leeren, damit sie beim nächsten Öffnen frisch geladen wird
             document.getElementById('stripe-table-container').innerHTML = "";
             setTimeout(() => { map.invalidateSize(); }, 100);
         };   
     </script>
 
-	<!-- Modal für die Stripe Preistabelle -->
-	<div id="stripe-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; box-sizing: border-box;">
-		<div style="background: white; border-radius: 12px; width: 100%; max-width: 900px; padding: 20px; position: relative; box-shadow: 0 5px 25px rgba(0,0,0,0.5);">
+    <!-- Modal für die Stripe Preistabelle -->
+    <div id="stripe-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; box-sizing: border-box;">
+        <div style="background: white; border-radius: 12px; width: 100%; max-width: 900px; padding: 20px; position: relative; box-shadow: 0 5px 25px rgba(0,0,0,0.5);">
         
         <button onclick="closeStripeModal()" style="position: absolute; top: 15px; right: 15px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; font-size: 16px;">✕</button>
         
         <h2 style="margin-top: 0; color: #2c3e50; text-align: center;">Wähle deine „Abschnitt Wasser Pro“ Lizenz</h2>
         <p style="text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Schalte alle Einsatz-Tools, HFS-Systeme, Pendelverkehrs-Rechner & den unbegrenzten Cloud-Speicher frei.</p>
         
-		<div id="stripe-table-container"></div>
+        <div id="stripe-table-container"></div>
 
     </div>
 </div>
