@@ -1553,7 +1553,18 @@
             document.getElementById('stripe-modal').style.display = 'none';
             document.getElementById('stripe-table-container').innerHTML = "";
             setTimeout(() => { map.invalidateSize(); }, 100);
-        };   
+        };
+
+		function oeffneKundenportal() {
+            if (!currentUser) return;
+            
+            // HIER fügst du später deinen echten Stripe-Portal-Link ein!
+            const stripePortalLink = "billing.stripe.com/p/login/test_5kQ00j6Rd7Ns8o44WkfAc00"; 
+            
+            // Wir hängen die E-Mail des Nutzers an die URL an, damit er sie bei Stripe nicht neu abtippen muss
+            const url = `${stripePortalLink}?prefilled_email=${encodeURIComponent(currentUser.email)}`;
+            window.open(url, '_blank');
+        }		
     </script>
 
     <!-- Modal für die Stripe Preistabelle -->
