@@ -200,6 +200,7 @@
             .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
             table { font-size: 13px !important; width: 100% !important; } 
             th, td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
+			#toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer { display: none !important; }
         }
 
         .leaflet-control-gps {
@@ -240,10 +241,14 @@
 
     <div id="info-bereich">
 
-        <!-- User Status Bar -->
+		<!-- User Status Bar -->
         <div id="user-status-bar" style="width: 100%; max-width: 1000px; text-align: right; font-size: 12px; margin-bottom: 5px;">
             <span id="user-email-display">Nicht eingeloggt</span> 
             <button onclick="document.getElementById('auth-modal').style.display='flex'" id="login-btn" style="background:#2980b9; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Login</button>
+            
+            <!-- NEU: Abo verwalten Button (Standardmäßig ausgeblendet) -->
+            <button onclick="oeffneKundenportal()" id="manage-abo-btn" style="display:none; background:#8e44ad; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer; margin-right: 4px;">⚙️ Abo verwalten</button>
+            
             <button onclick="logout()" id="logout-btn" style="display:none; background:#e74c3c; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Logout</button>
         </div>
         
@@ -432,7 +437,7 @@
             </div>
         </div>
 
-        <div id="koordinaten-box">
+		<div id="koordinaten-box">
             <div class="koordinaten-steuerung">
                 <button id="toggleKoorBtn" onclick="toggleKoordinaten()">📍 Standort-Koordinaten (UTM WGS84) einblenden ▼</button>
                 <button id="printKoorBtn" onclick="drucken()">🖨️ Drucken</button>
@@ -440,9 +445,17 @@
             <div id="koordinaten-liste"></div>
         </div>
 
-    </div>
+        <!-- RECHTLICHER FOOTER (Zwingend VOR dem schließenden div) -->
+        <div id="legal-footer" style="width: 100%; max-width: 1000px; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">
+            <a href="impressum.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Impressum</a> | 
+            <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> | 
+            <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB</a>
+        </div>
+
+    </div> <!-- HIER ENDET DER BLAUE INFO-BEREICH -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
     
     <script>
         // --- Reibungsverlust Interpolations-Hilfen ---
@@ -559,7 +572,7 @@
             }
         });
 
-        async function ladeHydranten() {
+		async function ladeHydranten() {
             let statusText = document.getElementById('api-status');
             if (map.getZoom() < 14) {
                 ofmLayer.clearLayers();
@@ -581,17 +594,61 @@
                         statusText.innerText = "✅ Keine Entnahmestellen";
                         return;
                     }
+                    
                     data.elements.forEach(function(node) {
-                        var isSuction = node.tags && node.tags['emergency'] === 'suction_point';
-                        var isTank = node.tags && node.tags['emergency'] === 'water_tank';
+                        var tags = node.tags || {};
+                        var isSuction = tags['emergency'] === 'suction_point';
+                        var isTank = tags['emergency'] === 'water_tank';
                         var farbe = isSuction || isTank ? "#3498db" : "#e74c3c";
+                        
                         var hIcon = L.divIcon({
                             className: '',
                             html: `<div style="background-color: ${farbe}; border: 2px solid white; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.8);"></div>`,
                             iconSize: [16, 16], iconAnchor: [8, 8]
                         });
-                        L.marker([node.lat, node.lon], {icon: hIcon}).bindPopup(`<b>${isSuction?'Saugstelle':isTank?'Behälter':'Hydrant'}</b>`).addTo(ofmLayer);
+
+                        // 1. Grundbezeichnung ermitteln
+                        var popupTitel = "Hydrant";
+                        var popupDetails = "";
+
+                        if (isSuction) {
+                            popupTitel = "Saugstelle";
+                        } else if (isTank) {
+                            popupTitel = "Löschwasserbehälter";
+                            // Falls Volumen eingetragen ist
+                            if (tags['water_tank:volume']) {
+                                popupDetails += `Volumen: ${tags['water_tank:volume']} m³<br>`;
+                            }
+                        } else {
+                            // Hydranten-Typ ermitteln
+                            let typ = tags['fire_hydrant:type'];
+                            let durchmesser = tags['fire_hydrant:diameter'];
+                            
+                            if (typ === 'underground') popupTitel = "Unterflurhydrant";
+                            else if (typ === 'pillar') popupTitel = "Überflurhydrant";
+                            else if (typ === 'wall') popupTitel = "Wandhydrant";
+
+                            // Nennweite an den Titel anhängen (z.B. (DN 80))
+                            if (durchmesser) {
+                                popupTitel += ` (DN ${durchmesser})`;
+                            }
+
+                            // Zusätzliche Infos (Nummer/Referenz, Druck) falls vorhanden
+                            if (tags['ref']) popupDetails += `Hydranten-Nr: ${tags['ref']}<br>`;
+                            if (tags['fire_hydrant:pressure']) popupDetails += `Druck: ${tags['fire_hydrant:pressure']} bar<br>`;
+                        }
+
+                        // 2. HTML für das Popup zusammenbauen
+                        let popupInhalt = `<b>${popupTitel}</b>`;
+                        if (popupDetails !== "") {
+                            popupInhalt += `<div style="margin-top:4px; font-size:11px; color:#7f8c8d; line-height:1.4;">${popupDetails}</div>`;
+                        }
+
+                        L.marker([node.lat, node.lon], {icon: hIcon})
+                         .bindPopup(popupInhalt)
+                         .addTo(ofmLayer);
                     });
+                    
                     statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen`;
                     return; 
                 } catch (err) {}
@@ -1393,7 +1450,7 @@
                     document.getElementById('user-email-display').innerText = currentUser.email;
                     document.getElementById('login-btn').style.display = 'none';
                     document.getElementById('logout-btn').style.display = 'inline-block';
-                    
+                    document.getElementById('manage-abo-btn').style.display = 'inline-block'; // <-- NEU HINZUFÜGEN
                     const { data, error } = await supabaseClient
                         .from('profiles')
                         .select('is_premium')
@@ -1413,6 +1470,8 @@
                 } else {
                     currentUser = null;
                     isPremium = false;
+					document.getElementById('user-email-display').innerText = "Nicht eingeloggt"; // Nur zur Sicherheit
+                    document.getElementById('manage-abo-btn').style.display = 'none'; // <-- NEU HINZUFÜGEN
                     wendePremiumSperrenAn();
                     aktualisiereSpeicherDropdown();
                 }
@@ -1508,8 +1567,11 @@
         
         <div id="stripe-table-container"></div>
 
-    </div>
-</div>
+		</div>
+	
+
+	</div>
+
 
 </body>
 </html>
