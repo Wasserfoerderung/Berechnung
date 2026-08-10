@@ -246,9 +246,9 @@
             <span id="user-email-display">Nicht eingeloggt</span> 
             <button onclick="document.getElementById('auth-modal').style.display='flex'" id="login-btn" style="background:#2980b9; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Login</button>
             
-            <!-- NEU: Abo verwalten Button (Standardmäßig ausgeblendet) -->
-            <button onclick="oeffneKundenportal()" id="manage-abo-btn" style="display:none; background:#8e44ad; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer; margin-right: 4px;">⚙️ Abo verwalten</button>
-            
+			<!-- NEU: Intelligenter Abo-Button (Standardmäßig ausgeblendet) -->
+            <button onclick="handleAboKlick()" id="manage-abo-btn" style="display:none; background:#8e44ad; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer; margin-right: 4px;">⚙️ Abo verwalten</button>
+			
             <button onclick="logout()" id="logout-btn" style="display:none; background:#e74c3c; color:white; border:none; border-radius:3px; padding:3px 8px; cursor:pointer;">Logout</button>
         </div>
         
@@ -1457,12 +1457,14 @@
                         .eq('id', currentUser.id)
                         .single();
                         
-                    if (data) {
+					if (data) {
                         isPremium = data.is_premium;
                         if (isPremium) {
                             document.getElementById('user-email-display').innerText = currentUser.email + " ⭐️ PRO";
+                            document.getElementById('manage-abo-btn').innerText = "⚙️ Abo verwalten"; // <- NEU
                         } else {
                             document.getElementById('user-email-display').innerText = currentUser.email;
+                            document.getElementById('manage-abo-btn').innerText = "⭐️ PRO freischalten"; // <- NEU
                         }
                     }
                     wendePremiumSperrenAn();
@@ -1555,16 +1557,19 @@
             setTimeout(() => { map.invalidateSize(); }, 100);
         };
 
-		function oeffneKundenportal() {
+		function handleAboKlick() {
             if (!currentUser) return;
             
-            // HIER fügst du später deinen echten Stripe-Portal-Link ein!
-            const stripePortalLink = "https://billing.stripe.com/p/login/test_5kQ00j6Rd7Ns8o44WkfAc00"; 
-            
-            // Wir hängen die E-Mail des Nutzers an die URL an, damit er sie bei Stripe nicht neu abtippen muss
-            const url = `${stripePortalLink}?prefilled_email=${encodeURIComponent(currentUser.email)}`;
-            window.open(url, '_blank');
-        }		
+            if (isPremium) {
+                // Nutzer IST Premium -> Ab ins Stripe Portal zur Kündigung/Verwaltung
+                const stripePortalLink = "https://billing.stripe.com/p/login/test_HIER_DEIN_LINK"; // <- Hier wieder deinen Link einfügen!
+                const url = `${stripePortalLink}?prefilled_email=${encodeURIComponent(currentUser.email)}`;
+                window.open(url, '_blank');
+            } else {
+                // Nutzer ist FREE -> Zeige das Modal mit der Preistabelle an
+                zeigePremiumWerbung();
+            }
+        }	
     </script>
 
     <!-- Modal für die Stripe Preistabelle -->
