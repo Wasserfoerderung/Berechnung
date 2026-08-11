@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Feuerwehr Wasserförderung - Taktische Karte</title>
+	<link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
@@ -220,7 +222,7 @@
 </head>
 <body>
 
-    <!-- Login Modal (Standardmäßig ausgeblendet) -->
+	<!-- Login Modal (Standardmäßig ausgeblendet) -->
     <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
             <h2 style="margin-top: 0; color: #2c3e50;">Feuerwehr App Login</h2>
@@ -228,6 +230,17 @@
             
             <input type="email" id="auth-email" placeholder="E-Mail Adresse" style="margin-bottom: 10px;">
             <input type="password" id="auth-password" placeholder="Passwort" style="margin-bottom: 15px;">
+            
+            <!-- HIER STARTET DIE NEUE CHECKBOX -->
+            <div style="margin-top: 5px; margin-bottom: 15px; text-align: left; font-size: 12px; color: #7f8c8d;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="agb-checkbox" style="width: 13px; height: 13px; flex-shrink: 0;">
+                    <span>
+                        Ich habe die <a href="agb.html" target="_blank" style="color: #2980b9; text-decoration: underline;">AGB</a> und die <a href="datenschutz.html" target="_blank" style="color: #2980b9; text-decoration: underline;">Datenschutzerklärung</a> gelesen und stimme diesen zu.
+                    </span>
+                </label>
+            </div>
+            <!-- HIER ENDET DIE NEUE CHECKBOX -->
             
             <button class="button btn-calc" onclick="login()" style="width: 100%; margin-bottom: 10px;">Einloggen</button>
             <button class="button btn-save" onclick="register()" style="width: 100%; margin-bottom: 15px;">Neu Registrieren</button>
@@ -446,10 +459,12 @@
         </div>
 
         <!-- RECHTLICHER FOOTER (Zwingend VOR dem schließenden div) -->
-        <div id="legal-footer" style="width: 100%; max-width: 1000px; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">
+		<div id="legal-footer" style="width: 100%; max-width: 1000px; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">
             <a href="impressum.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Impressum</a> | 
             <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> | 
             <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB</a>
+            
+            <button onclick="kontoLoeschen()" id="delete-account-btn" style="display: none; background: none; color: #c0392b; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin-left: 15px; font-family: inherit;">Konto löschen</button>
         </div>
 
     </div> <!-- HIER ENDET DER BLAUE INFO-BEREICH -->
@@ -1399,6 +1414,12 @@
         }
 
         async function register() {
+			const agbAkzeptiert = document.getElementById('agb-checkbox').checked;
+			if (!agbAkzeptiert) {
+			alert("Bitte stimme den AGB und der Datenschutzerklärung zu, um ein Konto zu erstellen.");
+			return; // Bricht die Funktion hier ab
+			}
+			
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             const msg = document.getElementById('auth-message');
@@ -1451,6 +1472,7 @@
                     document.getElementById('login-btn').style.display = 'none';
                     document.getElementById('logout-btn').style.display = 'inline-block';
                     document.getElementById('manage-abo-btn').style.display = 'inline-block'; // <-- NEU HINZUFÜGEN
+					document.getElementById('delete-account-btn').style.display = 'inline';
                     const { data, error } = await supabaseClient
                         .from('profiles')
                         .select('is_premium')
@@ -1474,6 +1496,7 @@
                     isPremium = false;
 					document.getElementById('user-email-display').innerText = "Nicht eingeloggt"; // Nur zur Sicherheit
                     document.getElementById('manage-abo-btn').style.display = 'none'; // <-- NEU HINZUFÜGEN
+					document.getElementById('delete-account-btn').style.display = 'none';
                     wendePremiumSperrenAn();
                     aktualisiereSpeicherDropdown();
                 }
@@ -1562,14 +1585,34 @@
             
             if (isPremium) {
                 // Nutzer IST Premium -> Ab ins Stripe Portal zur Kündigung/Verwaltung
-                const stripePortalLink = "https://billing.stripe.com/p/login/test_HIER_DEIN_LINK"; // <- Hier wieder deinen Link einfügen!
+                const stripePortalLink = "https://billing.stripe.com/p/login/test_5kQ00j6Rd7Ns8o44WkfAc00"; // <- Hier wieder deinen Link einfügen!
                 const url = `${stripePortalLink}?prefilled_email=${encodeURIComponent(currentUser.email)}`;
                 window.open(url, '_blank');
             } else {
                 // Nutzer ist FREE -> Zeige das Modal mit der Preistabelle an
                 zeigePremiumWerbung();
             }
-        }	
+        }
+
+		async function kontoLoeschen() {
+			if (!currentUser) return;
+
+			// 1. Sicherheitsabfrage
+			const bestaetigung = confirm("Achtung: Möchtest du dein Konto und alle gespeicherten Strecken wirklich unwiderruflich löschen? Dieser Schritt kann nicht rückgängig gemacht werden!");
+			
+			if (!bestaetigung) return;
+
+			// 2. Die Lösch-Funktion in Supabase aufrufen
+			const { error } = await supabaseClient.rpc('delete_user');
+
+			if (error) {
+				alert("Es gab ein Problem beim Löschen des Kontos: " + error.message);
+			} else {
+				alert("Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.");
+				// 3. Nutzer ausloggen und UI zurücksetzen
+				logout(); 
+			}
+		}		
     </script>
 
     <!-- Modal für die Stripe Preistabelle -->
