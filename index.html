@@ -13,10 +13,11 @@
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
     
 	<style>
-        html, body { 
+		html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             -webkit-tap-highlight-color: transparent; 
             background-color: #f4f4f4;
+            overflow: hidden; /* WICHTIG: Verhindert das Scrollen der gesamten Seite (Desktop & Mobile) */
         }
         body { 
             font-family: Arial, sans-serif; 
@@ -25,17 +26,20 @@
         }
         
         #map { 
-            flex-grow: 1; /* Desktop: Karte zwingend auf den ganzen freien Platz ausdehnen */
+            flex: 1 1 auto; /* Nimmt sich den restlichen Platz */
+            min-height: 40vh; /* Garantiert, dass die Karte mindestens 40% des Bildschirms ausfüllt */
             width: 100%; 
             z-index: 1; 
         }
         
         #info-bereich { 
-            flex-grow: 0; /* Desktop: Menü darf NICHT wachsen */
-            flex-shrink: 0; /* Desktop: Menü darf nicht schrumpfen */
+            flex: 0 1 auto; /* Passt sich dem Inhalt an, aber wächst nicht unendlich */
+            max-height: 60vh; /* Nimmt maximal 60% der Bildschirmhöhe ein */
+            overflow-y: auto; /* NEU: Zaubert einen Scrollbalken her, wenn der Inhalt länger als 60vh wird */
+            justify-content: flex-start; /* Fixiert den Inhalt oben im Menü */
             padding: 12px; background: #2c3e50; color: white;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1000; 
-            display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;
+            display: flex; flex-direction: column; gap: 12px; align-items: center;
         }
 
         /* --- Smartphone Optimierung (Greift nur auf kleinen Displays) --- */
@@ -188,7 +192,7 @@
         @page { size: A4 portrait; margin: 8mm; }
         @media print {
             html, body { background: white !important; color: black !important; display: block; height: 100%; margin: 0; padding: 0; }
-            #map { height: 360px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; }
+            #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; }
             #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; }
             #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container { display: none !important; }
             #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
@@ -202,7 +206,7 @@
             .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
             table { font-size: 13px !important; width: 100% !important; } 
             th, td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
-			#toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer { display: none !important; }
+			#toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer, #user-status-bar { display: none !important; }
         }
 
         .leaflet-control-gps {
@@ -444,6 +448,13 @@
                         <input type="number" id="pv_v" value="30" step="5" min="10" max="60" oninput="berechnePendelverkehr()" style="min-height: 36px; padding: 6px; font-size: 14px;">
                     </div>
                 </div>
+				<!-- NEU: Container für eigene Fahrzeuge und der Hinzufügen-Button -->
+                <div id="custom-fahrzeuge-container" style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;"></div>
+                <div style="margin-top: 4px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <button class="button" onclick="eigenesFahrzeugHinzufuegenPrompt()" style="background-color: #27ae60; width: 100%; font-size: 12px; min-height: 36px; padding: 6px;">
+                        ➕ Eigenes Fahrzeug hinzufügen (Pro)
+                    </button>
+                </div>
                 <div id="pv-ergebnis-anzeige" style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; font-size: 13px; margin-top: 4px; line-height: 1.4;">
                     <i>Bitte Strecke zeichnen und Fahrzeuge angeben...</i>
                 </div>
@@ -544,12 +555,73 @@
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
-        function drucken() {
+		function drucken() {
             if (!isPremium) {
                 zeigePremiumWerbung();
                 return;
             }
-            window.print();
+
+            // 1. Daten für den Ausdruckkopf dynamisch befüllen
+            let streckenName = document.getElementById('streckenNameInput').value;
+            if (!streckenName || streckenName.trim() === "") {
+                streckenName = "Unbenannt";
+            }
+            document.getElementById('druckStreckenName').innerText = "Strecke: " + streckenName;
+
+            let jetzt = new Date();
+            let datumString = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'}) + " Uhr";
+            document.getElementById('druckDatumUhrzeit').innerText = datumString;
+
+            let volumen = document.getElementById('volumenInput').value;
+            let leitungsartVal = document.getElementById('leitungsartInput').value;
+            let leitungText = leitungsartVal === "1" ? "Einfach" : "Doppel";
+            let hoehe = document.getElementById('hoehenInput').value;
+            
+            let pEingang = document.getElementById('eingangsdruckInput').value;
+            let pAusgang = document.getElementById('ausgangsdruckInput').value;
+            
+            document.getElementById('druckParamText').innerText = `Volumenstrom: ${volumen} l/min | Leitung (B): ${leitungText} | Höhe: ${hoehe} | Ausgang: ${pAusgang} bar | Eingang: ${pEingang} bar`;
+
+            // 2. Kartenausschnitt fixen: Karte exakt auf DIN-A4-Druck-Maße zwingen
+            let mapContainer = document.getElementById('map');
+            
+            // Alte Werte merken
+            let originalHeight = mapContainer.style.height || '';
+            let originalWidth = mapContainer.style.width || '';
+            let originalFlex = mapContainer.style.flex || '';
+            let originalMaxWidth = mapContainer.style.maxWidth || '';
+
+
+            mapContainer.style.flex = 'none';
+            mapContainer.style.width = '2000px';
+            mapContainer.style.maxWidth = '733px';
+            mapContainer.style.height = '500px';
+
+            // 3. Dem Browser 100ms geben, um das neue Format anzuwenden
+            setTimeout(() => {
+                map.invalidateSize({ animate: false }); // Leaflet sagen: "Hey, du bist jetzt A4!"
+                
+                if (punkteListe.length > 1) {
+                    // Jetzt wird die Route passgenau für die exakten A4-Maße zentriert
+                    map.fitBounds(schlauchleitung.getBounds(), { padding: [20, 20], animate: false });
+                }
+
+                // 4. 800ms warten, damit Leaflet die passenden Kacheln laden kann
+                setTimeout(() => {
+                    window.print();
+                    
+                    // 5. Nach dem Druckdialog alles wieder für den Desktop/Handy normalisieren
+                    mapContainer.style.flex = originalFlex;
+                    mapContainer.style.width = originalWidth;
+                    mapContainer.style.maxWidth = originalMaxWidth;
+                    mapContainer.style.height = originalHeight;
+                    
+                    map.invalidateSize({ animate: false });
+                    if (punkteListe.length > 1) {
+                        map.fitBounds(schlauchleitung.getBounds(), { padding: [30, 30], animate: false });
+                    }
+                }, 800);
+            }, 100);
         }
 
         // --- MAP INITIALISIERUNG & OVERPASS API ---
@@ -1326,7 +1398,7 @@
                 { name: "TLF 4000", anzahl: anzahlTLF4000, tank: 4000 },
                 { name: "HLF/LF 20", anzahl: anzahlHLF20, tank: 2000 },
                 { name: "TLF 3000", anzahl: anzahlTLF3000, tank: 3000 }
-            ];
+            ].concat(eigenePendelFahrzeuge);
 
             let gesamtErtrag = 0;
             let detailsHtml = "";
@@ -1372,6 +1444,76 @@
             } else {
                 anzeigeDiv.innerHTML = `<i>Bitte Anzahl der Fahrzeuge im Pendelverkehr eintragen...</i>`;
             }
+        }
+		
+		// Liste für eigene Fahrzeuge im Pendelverkehr
+        let eigenePendelFahrzeuge = [];
+
+        function eigenesFahrzeugHinzufuegenPrompt() {
+            if (!isPremium) {
+                zeigePremiumWerbung();
+                return;
+            }
+
+            let fahrzeugName = prompt("Bezeichnung des Fahrzeugs (z.B. WLF mit AB-Wasser):", "Großtanker");
+            if (!fahrzeugName) return;
+
+            let tankInhaltStr = prompt("Tankvolumen in Litern:", "10000");
+            let tankInhalt = parseInt(tankInhaltStr);
+            if (isNaN(tankInhalt) || tankInhalt <= 0) {
+                alert("Bitte gib eine gültige Literzahl ein.");
+                return;
+            }
+
+            let anzahlStr = prompt("Anzahl dieser Fahrzeuge im Pendelverkehr:", "1");
+            let anzahl = parseInt(anzahlStr);
+            if (isNaN(anzahl) || anzahl < 0) anzahl = 1;
+
+            // Fahrzeug zur Liste hinzufügen
+            eigenePendelFahrzeuge.push({
+                name: fahrzeugName,
+                tank: tankInhalt,
+                anzahl: anzahl
+            });
+
+            // UI aktualisieren und neu berechnen
+            baueCustomFahrzeugeUI();
+            berechnePendelverkehr();
+        }
+
+        function baueCustomFahrzeugeUI() {
+            let container = document.getElementById('custom-fahrzeuge-container');
+            if (!container) return;
+
+            container.innerHTML = "";
+
+            eigenePendelFahrzeuge.forEach((f, index) => {
+                let zeile = document.createElement('div');
+                zeile.className = "pv-zeile";
+                zeile.style.borderLeft = "3px solid #27ae60"; // Kleine optische Hervorhebung
+                zeile.innerHTML = `
+                    <span>${f.name} (${f.tank} l):</span>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="number" value="${f.anzahl}" min="0" max="20" oninput="updateCustomFahrzeugAnzahl(${index}, this.value)">
+                        <button onclick="loescheCustomFahrzeug(${index})" style="background: #e74c3c; color: white; border: none; border-radius: 4px; width: 34px; height: 36px; cursor: pointer; font-size: 14px;" title="Löschen">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(zeile);
+            });
+        }
+
+        function updateCustomFahrzeugAnzahl(index, wert) {
+            let val = parseInt(wert);
+            if (!isNaN(val) && val >= 0) {
+                eigenePendelFahrzeuge[index].anzahl = val;
+                berechnePendelverkehr();
+            }
+        }
+
+        function loescheCustomFahrzeug(index) {
+            eigenePendelFahrzeuge.splice(index, 1);
+            baueCustomFahrzeugeUI();
+            berechnePendelverkehr();
         }
 
         function berechneStreckenMeterZwischen(idx1, idx2, dichtePunkte) {
