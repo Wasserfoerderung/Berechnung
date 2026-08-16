@@ -243,6 +243,22 @@
 </head>
 <body>
 
+	<!-- Feedback Modal -->
+    <div id="feedback-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #2c3e50; padding: 20px; border-radius: 8px; width: 90%; max-width: 450px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 12px;">
+            <h3 style="margin: 0; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">💬 Feedback & Funktionswünsche</h3>
+            <p style="margin: 0; font-size: 13px; color: #bdc3c7;">Teile uns Fehler, Verbesserungsvorschläge oder gewünschte Funktionen mit:</p>
+            
+            <!-- Mehrzeiliges Textfeld -->
+            <textarea id="feedback-text" rows="5" placeholder="Schreibe hier dein Feedback..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #7f8c8d; background: #34495e; color: white; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                <button onclick="schliesseFeedbackModal()" style="background: #7f8c8d; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;">Abbrechen</button>
+                <button onclick="sendeFeedbackAbsenden()" style="background: #27ae60; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">Absenden</button>
+            </div>
+        </div>
+    </div>
+
 	<!-- Login Modal (Standardmäßig ausgeblendet) -->
     <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
@@ -492,7 +508,8 @@
             <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> | 
             <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB</a>
             
-            <button onclick="kontoLoeschen()" id="delete-account-btn" style="display: none; background: none; color: #c0392b; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin-left: 15px; font-family: inherit;">Konto löschen</button>
+            <button onclick="sendeFeedback()" style="background: none; color: #3498db; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin: 0 8px; font-family: inherit;">Feedback & Wünsche</button>
+			<button onclick="kontoLoeschen()" id="delete-account-btn" style="display: none; background: none; color: #c0392b; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin-left: 15px; font-family: inherit;">Konto löschen</button>
         </div>
 
     </div> <!-- HIER ENDET DER BLAUE INFO-BEREICH -->
@@ -1785,7 +1802,44 @@
 				// 3. Nutzer ausloggen und UI zurücksetzen
 				logout(); 
 			}
-		}		
+		}
+		
+		function sendeFeedback() {
+            // Modal öffnen und Textfeld leeren
+            document.getElementById('feedback-text').value = "";
+            document.getElementById('feedback-modal').style.display = 'flex';
+            document.getElementById('feedback-text').focus();
+        }
+
+        function schliesseFeedbackModal() {
+            document.getElementById('feedback-modal').style.display = 'none';
+        }
+
+        async function sendeFeedbackAbsenden() {
+            let nachricht = document.getElementById('feedback-text').value;
+            if (!nachricht || nachricht.trim() === "") {
+                alert("Bitte gib eine Nachricht ein.");
+                return;
+            }
+
+            let userId = currentUser ? currentUser.id : null;
+            let userEmail = currentUser ? currentUser.email : "Anonym";
+
+            if (supabaseClient) {
+                let { error } = await supabaseClient
+                    .from('feedback')
+                    .insert([{ user_id: userId, email: userEmail, nachricht: nachricht }]);
+
+                if (error) {
+                    alert("Fehler beim Senden des Feedbacks: " + error.message);
+                } else {
+                    alert("Vielen Dank! Dein Feedback wurde erfolgreich übermittelt.");
+                    schliesseFeedbackModal();
+                }
+            } else {
+                alert("Supabase ist nicht verbunden. Feedback konnte nicht gesendet werden.");
+            }
+        }	
     </script>
 
     <!-- Modal für die Stripe Preistabelle -->
