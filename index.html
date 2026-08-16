@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
 	<style>
 		html, body { 
@@ -188,10 +189,11 @@
 
         #druck-meta-titel, #druck-parameter-box { display: none; }
 
-        /* DIN A4 Druckansicht */
+       /* DIN A4 Druckansicht und Hintergrund-PDF-Modus */
         @page { size: A4 portrait; margin: 8mm; }
-        @media print {
-            html, body { background: white !important; color: black !important; display: block; height: 100%; margin: 0; padding: 0; }
+        @media print, .pdf-mode {
+            html, body { background: white !important; color: black !important; display: block; height: auto !important; margin: 0; padding: 0; overflow: visible !important; }
+            /* ... deine restlichen bestehenden Print-Befehle bleiben hier exakt gleich ... */
             #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; }
             #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; }
             #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container { display: none !important; }
@@ -554,73 +556,87 @@
             }
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
-
+		
 		function drucken() {
             if (!isPremium) {
                 zeigePremiumWerbung();
                 return;
             }
 
-            // 1. Daten für den Ausdruckkopf dynamisch befüllen
-            let streckenName = document.getElementById('streckenNameInput').value;
-            if (!streckenName || streckenName.trim() === "") {
-                streckenName = "Unbenannt";
-            }
+            // Visuelles Feedback für den Nutzer (Lade-Status)
+            let printBtn = document.getElementById('printKoorBtn');
+            let alterText = printBtn.innerHTML;
+            printBtn.innerHTML = '⏳ Generiere PDF...';
+            printBtn.style.backgroundColor = '#f39c12';
+            printBtn.disabled = true;
+
+            // 1. Daten für den Ausdruckkopf befüllen
+            let streckenName = document.getElementById('streckenNameInput').value || "Unbenannt";
             document.getElementById('druckStreckenName').innerText = "Strecke: " + streckenName;
 
             let jetzt = new Date();
-            let datumString = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'}) + " Uhr";
-            document.getElementById('druckDatumUhrzeit').innerText = datumString;
+            document.getElementById('druckDatumUhrzeit').innerText = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'}) + " Uhr";
 
             let volumen = document.getElementById('volumenInput').value;
-            let leitungsartVal = document.getElementById('leitungsartInput').value;
-            let leitungText = leitungsartVal === "1" ? "Einfach" : "Doppel";
+            let leitungText = document.getElementById('leitungsartInput').value === "1" ? "Einfach" : "Doppel";
             let hoehe = document.getElementById('hoehenInput').value;
-            
             let pEingang = document.getElementById('eingangsdruckInput').value;
             let pAusgang = document.getElementById('ausgangsdruckInput').value;
             
             document.getElementById('druckParamText').innerText = `Volumenstrom: ${volumen} l/min | Leitung (B): ${leitungText} | Höhe: ${hoehe} | Ausgang: ${pAusgang} bar | Eingang: ${pEingang} bar`;
 
-            // 2. Kartenausschnitt fixen: Karte exakt auf DIN-A4-Druck-Maße zwingen
+            // 2. Den Body in den CSS-Druckmodus zwingen
+            document.body.classList.add('pdf-mode');
+
+            // Kartenausschnitt exakt auf DIN-A4 zwingen
             let mapContainer = document.getElementById('map');
-            
-            // Alte Werte merken
             let originalHeight = mapContainer.style.height || '';
             let originalWidth = mapContainer.style.width || '';
             let originalFlex = mapContainer.style.flex || '';
             let originalMaxWidth = mapContainer.style.maxWidth || '';
 
-
             mapContainer.style.flex = 'none';
-            mapContainer.style.width = '2000px';
+            mapContainer.style.width = '733px';
             mapContainer.style.maxWidth = '733px';
             mapContainer.style.height = '500px';
 
-            // 3. Dem Browser 100ms geben, um das neue Format anzuwenden
             setTimeout(() => {
-                map.invalidateSize({ animate: false }); // Leaflet sagen: "Hey, du bist jetzt A4!"
-                
+                map.invalidateSize({ animate: false });
                 if (punkteListe.length > 1) {
-                    // Jetzt wird die Route passgenau für die exakten A4-Maße zentriert
                     map.fitBounds(schlauchleitung.getBounds(), { padding: [20, 20], animate: false });
                 }
 
-                // 4. 800ms warten, damit Leaflet die passenden Kacheln laden kann
+                // 3. Warten, bis die Kacheln geladen sind, dann PDF generieren
                 setTimeout(() => {
-                    window.print();
-                    
-                    // 5. Nach dem Druckdialog alles wieder für den Desktop/Handy normalisieren
-                    mapContainer.style.flex = originalFlex;
-                    mapContainer.style.width = originalWidth;
-                    mapContainer.style.maxWidth = originalMaxWidth;
-                    mapContainer.style.height = originalHeight;
-                    
-                    map.invalidateSize({ animate: false });
-                    if (punkteListe.length > 1) {
-                        map.fitBounds(schlauchleitung.getBounds(), { padding: [30, 30], animate: false });
-                    }
-                }, 800);
+                    var element = document.body;
+                    var opt = {
+                        margin:       8,
+                        filename:     'Wasserfoerderung_' + streckenName.replace(/[^a-z0-9]/gi, '_') + '.pdf',
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true }, // useCORS ist zwingend nötig für Leaflet-Karten!
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    // PDF erstellen, speichern und UI zurücksetzen
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        
+                        document.body.classList.remove('pdf-mode');
+                        
+                        mapContainer.style.flex = originalFlex;
+                        mapContainer.style.width = originalWidth;
+                        mapContainer.style.maxWidth = originalMaxWidth;
+                        mapContainer.style.height = originalHeight;
+                        
+                        map.invalidateSize({ animate: false });
+                        if (punkteListe.length > 1) {
+                            map.fitBounds(schlauchleitung.getBounds(), { padding: [30, 30], animate: false });
+                        }
+                        
+                        printBtn.innerHTML = alterText;
+                        printBtn.style.backgroundColor = '#2980b9';
+                        printBtn.disabled = false;
+                    });
+                }, 1000); // 1 Sekunde Puffer für die Kacheln
             }, 100);
         }
 
