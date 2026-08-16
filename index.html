@@ -189,27 +189,42 @@
 
         #druck-meta-titel, #druck-parameter-box { display: none; }
 
-       /* DIN A4 Druckansicht und Hintergrund-PDF-Modus */
+		/* 1. DIN A4 Druckansicht (für den klassischen Druckdialog) */
         @page { size: A4 portrait; margin: 8mm; }
-        @media print, .pdf-mode {
+        @media print {
             html, body { background: white !important; color: black !important; display: block; height: auto !important; margin: 0; padding: 0; overflow: visible !important; }
-            /* ... deine restlichen bestehenden Print-Befehle bleiben hier exakt gleich ... */
-            #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; }
-            #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; }
-            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container { display: none !important; }
+            #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; flex: none !important; }
+            #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; max-height: none !important; overflow: visible !important; }
+            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer, #user-status-bar { display: none !important; }
             #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
             #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
-            #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; }
+            #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; overflow: visible !important; }
             #druck-meta-titel { display: block !important; font-size: 15px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 3px; width: 100%; }
-            #druck-parameter-box { display: block !important; font-size: 13px !important; margin-bottom: 5px; border: 1px solid #7f8c8d; padding: 5px; width: 100%; background: #fdfdfd !important; } 
+            #druck-parameter-box { display: block !important; font-size: 13px !important; margin-bottom: 5px; border: 1px solid #7f8c8d; padding: 5px; width: 100%; background: #fdfdfd !important; }
             .ergebnis-spalte h3 { color: #000 !important; font-size: 10px !important; margin: 0 0 2px 0 !important; }
             .ergebnis-spalte h2 { color: #000 !important; font-size: 11px !important; margin: 1px 0 !important; }
             .ergebnis-spalte span { color: #000 !important; font-size: 13px !important; }
             .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
-            table { font-size: 13px !important; width: 100% !important; } 
+            table { font-size: 13px !important; width: 100% !important; }
             th, td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
-			#toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer, #user-status-bar { display: none !important; }
         }
+
+        /* 2. EXAKT die gleichen Regeln für unseren html2pdf-Modus (iOS Fix) */
+        body.pdf-mode, body.pdf-mode html { background: white !important; color: black !important; display: block; height: auto !important; margin: 0; padding: 0; overflow: visible !important; }
+        body.pdf-mode #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; flex: none !important; }
+        body.pdf-mode #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; max-height: none !important; overflow: visible !important; }
+        body.pdf-mode #toggleSpeicherBtn, body.pdf-mode #speicher-leiste, body.pdf-mode #eingabe-leiste, body.pdf-mode .klapp-wrapper, body.pdf-mode #druck-warnung-box, body.pdf-mode .koordinaten-steuerung, body.pdf-mode .leaflet-control-container, body.pdf-mode #legal-footer, body.pdf-mode #user-status-bar { display: none !important; }
+        body.pdf-mode #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
+        body.pdf-mode #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
+        body.pdf-mode #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; overflow: visible !important; }
+        body.pdf-mode #druck-meta-titel { display: block !important; font-size: 15px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 3px; width: 100%; }
+        body.pdf-mode #druck-parameter-box { display: block !important; font-size: 13px !important; margin-bottom: 5px; border: 1px solid #7f8c8d; padding: 5px; width: 100%; background: #fdfdfd !important; }
+        body.pdf-mode .ergebnis-spalte h3 { color: #000 !important; font-size: 10px !important; margin: 0 0 2px 0 !important; }
+        body.pdf-mode .ergebnis-spalte h2 { color: #000 !important; font-size: 11px !important; margin: 1px 0 !important; }
+        body.pdf-mode .ergebnis-spalte span { color: #000 !important; font-size: 13px !important; }
+        body.pdf-mode .ergebnis-spalte { border-left-color: #000 !important; min-width: unset !important; padding: 3px !important; }
+        body.pdf-mode table { font-size: 13px !important; width: 100% !important; }
+        body.pdf-mode th, body.pdf-mode td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
 
         .leaflet-control-gps {
             background: #fff; width: 44px; height: 44px; line-height: 44px;
@@ -641,7 +656,7 @@
         }
 
         // --- MAP INITIALISIERUNG & OVERPASS API ---
-        var map = L.map('map').setView([50.2925, 8.8142], 14);
+        var map = L.map('map', { preferCanvas: true }).setView([50.2925, 8.8142], 14);
         var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 
         var ofmLayer = L.layerGroup();
