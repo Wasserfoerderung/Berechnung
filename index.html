@@ -1054,6 +1054,8 @@
         let globaleDichtePunkte = [];
         let globaleHoehen = [];
         let automatischePumpenIndizes = [];
+		// Speicher für individuelle Funkrufnamen der Pumpen
+		let pumpenNamen = {};
 
         async function auswerten(manuelleVorgaben = null, rebuildUI = false) {
             if (punkteListe.length < 2) { alert("Bitte zeichnen Sie eine Strecke."); return; }
@@ -1241,9 +1243,22 @@
                 coordHtml += `<tr><td style="padding:4px; color:#e67e22; font-weight:bold;">AB-LWV (HFS 10 bar)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
             } else {
                 if (hatStartPumpe) {
-                    let p1Icon = L.divIcon({ className: '', html: `<div class="icon-ts" style="background-color:#e74c3c; line-height:1.1; flex-direction:column;">P1</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
+                    // NEU: Name für die Startpumpe (P1) auslesen
+                    let p1Label = "P1";
+                    let p1BaseName = pumpenStandardName;
+                    
+                    if (pumpenNamen[1] && pumpenNamen[1].trim() !== "") {
+                        p1Label = `P1<br><span style="font-size:8px;">${pumpenNamen[1]}</span>`;
+                        p1BaseName = pumpenNamen[1];
+                    } else if (trassenMultiplikator > 1) {
+                        p1Label += `<br><span style="font-size:8px;">[${trassenMultiplikator}x]</span>`;
+                    }
+
+                    // Verbreitertes Icon für die Karte
+                    let p1Icon = L.divIcon({ className: '', html: `<div class="icon-ts" style="background-color:#e74c3c; line-height:1.1; flex-direction:column; text-align:center; min-width:40px; padding:2px; height:auto; border-radius:6px;">${p1Label}</div>`, iconSize: [44, 44], iconAnchor: [22, 22] });
                     L.marker(dichtePunkte[0], {icon: p1Icon, title: "Startpumpe P1"}).addTo(symboleLayer);
-                    coordHtml += `<tr><td style="padding:4px; color:#e74c3c; font-weight:bold;">${trasseTextStart}${pumpenStandardName} P1 (Start)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px; font-weight:bold;">0 m</td></tr>`;
+                    
+                    coordHtml += `<tr><td style="padding:4px; color:#e74c3c; font-weight:bold;">${trasseTextStart}${p1BaseName} P1 (Start)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px; font-weight:bold;">0 m</td></tr>`;
                 } else {
                     L.marker(dichtePunkte[0], {icon: startIcon, title: "Entnahme"}).addTo(symboleLayer);
                     coordHtml += `<tr><td style="padding:4px; color:#3498db; font-weight:bold;">Entnahme (Hydrant/Druck)</td><td style="padding:4px;">${utmStart.zone}</td><td style="padding:4px;">${utmStart.ostwert}</td><td style="padding:4px;">${utmStart.nordwert}</td><td style="padding:4px;">-</td></tr>`;
@@ -1276,10 +1291,17 @@
                 let pNum = idx + 1 + pumpenNummerOffset;
                 let bgColor = pufferbeckenZustand[pNum] ? 'background-color: #9b59b6;' : '';
                 
+                // 1. Text für das rote Karten-Icon generieren
                 let pLabel = `P${pNum}`;
-                if (trassenMultiplikator > 1) pLabel += `<br><span style="font-size:8px;">[${trassenMultiplikator}x]</span>`;
+                if (pumpenNamen[pNum] && pumpenNamen[pNum].trim() !== "") {
+                    // Zeigt den Funkrufnamen klein unter dem "P1" im Icon
+                    pLabel = `P${pNum}<br><span style="font-size:8px;">${pumpenNamen[pNum]}</span>`;
+                } else if (trassenMultiplikator > 1) {
+                    pLabel += `<br><span style="font-size:8px;">[${trassenMultiplikator}x]</span>`;
+                }
                 
-                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts" style="${bgColor} line-height:1.1; flex-direction:column;">${pLabel}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
+                // Icon für die Karte (Etwas breiter gemacht, damit der Name reinpasst)
+                let pIcon = L.divIcon({ className: '', html: `<div class="icon-ts" style="${bgColor} line-height:1.1; flex-direction:column; text-align:center; min-width:40px; padding:2px; height:auto; border-radius:6px;">${pLabel}</div>`, iconSize: [44, 44], iconAnchor: [22, 22] });
                 L.marker(dichtePunkte[pIdx], {icon: pIcon, title: `Station P${pNum}`}).addTo(symboleLayer);
                 
                 let utmP = getUTM(dichtePunkte[pIdx].lat, dichtePunkte[pIdx].lng);
@@ -1288,7 +1310,15 @@
                 let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (trassenMultiplikator * leitungsart);
 
                 let trasseText = trassenMultiplikator > 1 ? `[${trassenMultiplikator}x] ` : "";
-                let bezeichnung = pufferbeckenZustand[pNum] ? `${trasseText}${pumpenStandardName} P${pNum} (offen)` : `${trasseText}${pumpenStandardName} P${pNum} (geschloss.)`;
+                
+                // 2. Text für die Koordinaten-Tabelle generieren
+                let baseName = pumpenStandardName;
+                // Wenn ein Funkrufname da ist, ersetzen wir "PFPN 10-1000" komplett
+                if (pumpenNamen[pNum] && pumpenNamen[pNum].trim() !== "") {
+                    baseName = pumpenNamen[pNum]; 
+                }
+                
+                let bezeichnung = pufferbeckenZustand[pNum] ? `${trasseText}${baseName} P${pNum} (offen)` : `${trasseText}${baseName} P${pNum}`;
                 let textColor = pufferbeckenZustand[pNum] ? '#9b59b6' : '#e74c3c';
                 
                 coordHtml += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${benoetigteSchlaeuche} B)</td></tr>`;
@@ -1387,6 +1417,29 @@
 
             container.innerHTML = "";
             
+            // NEU: Eingabefeld für die Startpumpe (P1), falls vorhanden
+            if (pumpenNummerOffset === 1) {
+                let p1Name = pumpenNamen[1] || "";
+                let zeileP1 = document.createElement('div');
+                zeileP1.className = "pumpe-slider-zeile";
+                zeileP1.style.flexDirection = "column";
+                zeileP1.style.alignItems = "stretch";
+                zeileP1.style.gap = "6px";
+                zeileP1.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-weight:bold; color: #e74c3c;">Startpumpe P1:</span>
+                        <span style="font-size: 10px; color:#bdc3c7;">(Fester Standort am Start)</span>
+                    </div>
+                    <div style="display: flex;">
+                        <input type="text" placeholder="Funkrufname (z.B. Florian Kaichen 43)" 
+                               value="${p1Name}" 
+                               oninput="updatePumpenName(1, this.value)" 
+                               style="width: 100%; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                    </div>
+                `;
+                container.appendChild(zeileP1);
+            }
+
             pumpenIndizes.forEach((pIdx, idx) => {
                 let pNum = idx + 1 + pumpenNummerOffset;
                 let ermittelteDistanz = Math.round(berechneStreckenMeterBis(pIdx, dichtePunkte));
@@ -1406,21 +1459,31 @@
                 if (currentVal < minMeter) currentVal = minMeter;
 
                 let isChecked = pufferbeckenZustand[pNum] ? "checked" : "";
+                let currentName = pumpenNamen[pNum] || "";
 
                 let zeile = document.createElement('div');
                 zeile.className = "pumpe-slider-zeile";
                 zeile.style.flexDirection = "column";
                 zeile.style.alignItems = "stretch";
-                zeile.style.gap = "8px";
+                zeile.style.gap = "6px";
                 zeile.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
                         <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">Stat. ${pNum}:</span>
                         <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
-                        <span id="label_p_${pNum}" style="min-width:65px; text-align:right;">${currentVal} m</span>
+                        <span id="label_p_${pNum}" style="min-width:50px; text-align:right;">${currentVal} m</span>
                     </div>
-                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
-                        <label for="check_p_${pNum}" style="font-size: 11px; cursor:pointer; color:#bdc3c7;">↳ Offene Förderstrecke (Becken / 0,1 bar Eingang)</label>
-                        <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                    
+                    <!-- NEU: Kompakte Zeile für Name und Pufferbecken in einem -->
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
+                        <input type="text" placeholder="Funkrufname..." 
+                               value="${currentName}" 
+                               oninput="updatePumpenName(${pNum}, this.value)" 
+                               style="flex: 1; min-width: 120px; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                        
+                        <label style="font-size: 11px; cursor:pointer; color:#bdc3c7; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                            Becken (0,1 bar)
+                        </label>
                     </div>
                 `;
                 container.appendChild(zeile);
@@ -1598,6 +1661,22 @@
             auswerten(vorschuesse, false);
         }
         
+		function updatePumpenName(pNum, wert) {
+            pumpenNamen[pNum] = wert;
+            
+            // Lese die aktuellen Positionen aller Slider aus, 
+            // damit die Pumpen beim Aktualisieren nicht zurückspringen
+            let vorschuesse = {};
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            alleSlider.forEach(s => {
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                vorschuesse[id] = parseInt(s.value);
+            });
+            
+            // Rufe die Hauptfunktion auf (false = UI nicht komplett neu aufbauen, nur updaten)
+            auswerten(vorschuesse, false);
+        }
+		
         function closeAuthModal() {
             document.getElementById('auth-modal').style.display = 'none';
             setTimeout(() => { map.invalidateSize(); }, 100); 
