@@ -1350,7 +1350,7 @@
             let totalePumpen = (anzahlPumpenStationen + pumpenNummerOffset) * trassenMultiplikator;
             let totaleBSchlaeuche = Math.ceil(distB / 20) * (trassenMultiplikator * leitungsart);
             let reservePumpen = totalePumpen > 0 ? Math.ceil(totalePumpen / 4) : 0;
-            let reserveSchlaeuche = Math.ceil(totaleBSchlaeuche / 100);
+            let reserveSchlaeuche = Math.ceil(totaleBSchlaeuche / 5);
 
             if (hfsCount > 0) {
                 document.getElementById('hfs-result-spalte').style.display = 'flex';
@@ -1431,7 +1431,7 @@
                         <span style="font-size: 10px; color:#bdc3c7;">(Fester Standort am Start)</span>
                     </div>
                     <div style="display: flex;">
-                        <input type="text" placeholder="Funkrufname (z.B. Florian Kaichen 43)" 
+                        <input type="text" placeholder="Funkrufname (z.B. Fl Muster 1-43)" 
                                value="${p1Name}" 
                                oninput="updatePumpenName(1, this.value)" 
                                style="width: 100%; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
@@ -1475,7 +1475,7 @@
                     
                     <!-- NEU: Kompakte Zeile für Name und Pufferbecken in einem -->
                     <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-                        <input type="text" placeholder="Funkrufname..." 
+                        <input type="text" placeholder="Funkrufname" 
                                value="${currentName}" 
                                oninput="updatePumpenName(${pNum}, this.value)" 
                                style="flex: 1; min-width: 120px; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
