@@ -89,6 +89,17 @@
         #hoehenInput { background-color: #bdc3c7; color: #2c3e50; font-weight: bold; cursor: text; }
         #api-status { font-size: 12px; color: #f39c12; margin-top: 2px; position: absolute; bottom: -18px; white-space: nowrap; }
 
+		.taktik-map-btn {
+            background: white; color: #2c3e50; border: 2px solid rgba(0,0,0,0.2); 
+            padding: 8px 12px; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; font-size: 13px; box-shadow: 0 1px 5px rgba(0,0,0,0.65); 
+            transition: background 0.2s, color 0.2s; display: flex; 
+            align-items: center; gap: 6px; font-family: Arial, sans-serif;
+        }
+        .taktik-map-btn:hover {
+            background: #f4f4f4;
+        }
+
         .button { padding: 10px 16px; font-size: 15px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; min-height: 44px; display: flex; align-items: center; justify-content: center; white-space: nowrap; box-sizing: border-box;}
         .btn-calc { background-color: #27ae60; font-size: 16px; padding: 12px 20px; width: 100%; max-width: 250px;}
         .btn-calc:hover { background-color: #2ecc71; }
@@ -239,7 +250,74 @@
         .icon-verteiler { background-color: #c0392b; border: 2px solid white; border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .icon-hfs { background-color: #e67e22; border: 2px solid white; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
         .icon-f5b { background-color: #f39c12; border: 2px solid white; border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.5); z-index: 900 !important; text-align: center; line-height: 1.1; }
-    </style>
+    
+		/* --- NEU: Styles für Taktik-Optimierer --- */
+        .tab-container {
+            display: flex; width: 100%; max-width: 1000px; margin-bottom: 10px; border-radius: 6px; overflow: hidden; border: 1px solid #34495e;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; border: none; background: #2c3e50; color: #7f8c8d; text-align: center; transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: #2980b9; color: white;
+        }
+        #taktik-leiste {
+            display: none; flex-direction: column; width: 100%; max-width: 1000px; gap: 10px;
+        }
+        .fahrzeug-zeile {
+            display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 8px 10px; border-radius: 6px; font-size: 13px; flex-wrap: wrap; gap: 8px; border-left: 3px solid transparent;
+        }
+        .fahrzeug-info {
+            display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px;
+        }
+        .fahrzeug-steuerung {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .fahrzeug-steuerung button {
+            width: 34px; height: 34px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;
+        }
+        .btn-plus { background: #27ae60; color: white; }
+        .btn-minus { background: #e74c3c; color: white; }
+        .btn-fuhrpark { background: #8e44ad; color: white; padding: 10px; font-size: 13px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-align: center; width: 100%; margin-top: 5px; }
+		
+		/* --- NEU: Styles für Taktik-Dashboard und Tabelle --- */
+        #taktik-dashboard {
+            display: none; flex-direction: column; width: 100%; max-width: 1000px; gap: 10px; margin-top: 10px; box-sizing: border-box;
+        }
+        .hud-box {
+            background: #34495e; padding: 15px; border-radius: 8px; border-left: 5px solid #2ecc71; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .hud-title {
+            font-size: 18px; font-weight: bold; color: white; margin-bottom: 10px; text-transform: uppercase;
+        }
+        .hud-bar-container {
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
+        }
+        .hud-bar-row {
+            display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #bdc3c7;
+        }
+        .hud-bar-bg {
+            flex: 1; background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; margin: 0 10px; overflow: hidden; position: relative;
+        }
+        .hud-bar-fill {
+            height: 100%; background: #3498db; width: 0%; transition: width 0.5s ease;
+        }
+        .hud-alert {
+            background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; padding: 8px; border-radius: 4px; font-size: 13px; color: #ffcccb; display: none;
+        }
+        .taktik-tabelle {
+            width: 100%; border-collapse: collapse; font-size: 12px; background: #2c3e50; border-radius: 6px; overflow: hidden;
+        }
+        .taktik-tabelle th {
+            background: #1abc9c; color: white; padding: 8px; text-align: left;
+        }
+        .taktik-tabelle td {
+            padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ecf0f1; vertical-align: top;
+        }
+        .trasse-a { color: #3498db; font-weight: bold; }
+        .trasse-b { color: #e74c3c; font-weight: bold; }
+	
+	</style>
 </head>
 <body>
 
@@ -286,8 +364,51 @@
             <button onclick="closeAuthModal()" style="margin-top: 15px; background: none; border: none; color: #7f8c8d; cursor: pointer; text-decoration: underline;">Ohne Login fortfahren (Free-Modus)</button>
         </div>
     </div>
+	
+	<!-- Fuhrpark Modal (Eigene Fahrzeuge) -->
+    <div id="fuhrpark-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #2c3e50; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 12px;">
+            <h3 style="margin: 0; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">🚒 Eigenes Fahrzeug anlegen</h3>
+            
+            <div class="eingabe-gruppe" style="width: 100%;">
+                <label>Fahrzeugname / Funkrufname:</label>
+                <input type="text" id="fp-name" placeholder="z.B. GW-L Bauhof..." style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
+            </div>
+            
+            <div class="eingabe-gruppe" style="width: 100%;">
+                <label>Fest verbaute Pumpe (FPN):</label>
+                <select id="fp-fpn" style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
+                    <option value="0">Keine</option>
+                    <option value="1000">1.000er Klasse (z.B. FPN 10-1000)</option>
+                    <option value="2000">2.000er Klasse (z.B. FPN 10-2000)</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <div class="eingabe-gruppe" style="flex: 1;">
+                    <label>B-Schläuche:</label>
+                    <input type="number" id="fp-schlauch" value="0" min="0" style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
+                </div>
+                <div class="eingabe-gruppe" style="flex: 1;">
+                    <label>Anzahl TS (PFPN):</label>
+                    <input type="number" id="fp-pfpn" value="0" min="0" style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+                <button onclick="document.getElementById('fuhrpark-modal').style.display='none'" style="background: #7f8c8d; color: white; border: none; padding: 10px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;">Abbrechen</button>
+                <button onclick="speichereEigenesFahrzeug()" style="background: #27ae60; color: white; border: none; padding: 10px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">Speichern</button>
+            </div>
+        </div>
+    </div>
 
     <div id="map"></div>
+	
+	<!-- DIESEN BLOCK KOMPLETT LÖSCHEN -->
+    <!-- NEU: Schwebender Umschalt-Button für den Taktik-Modus -->
+    <button id="btn-taktik-toggle" onclick="toggleModus()" style="position: absolute; top: 12px; right: 60px; ...">
+        <span style="font-size: 16px;">🚀</span> Taktik: AUS
+    </button>
 
     <div id="info-bereich">
 
@@ -330,6 +451,83 @@
             <button class="button btn-clear" onclick="streckeAusSpeicherLoeschen()" title="Löschen">🗑️</button>
         </div>
 
+        <!-- NEU: TAKTIK LEISTE -->
+        <div id="taktik-leiste">
+            
+            <!-- Strecken-Werkzeuge -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
+                <div class="eingabe-gruppe" style="min-width: 80px; flex: 0 0 auto;">
+                    <label>Strecke:</label>
+                    <span id="taktik-distanzAnzeige" style="font-size: 18px; margin-top: 4px; display: inline-block; font-weight:bold; color: #2ecc71;">0 m</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="button btn-history" onclick="punktRueckgaengig()" title="Letzten Klick entfernen">↩️</button>
+                    <button class="button btn-history" onclick="punktWiederherstellen()" title="Wiederherstellen">↪️</button>
+                    <button class="button btn-clear" onclick="streckeLoeschen()" style="padding: 0 12px; font-size: 13px;">Neu</button>
+                </div>
+            </div>
+
+            <!-- Klappbare Fahrzeugliste -->
+            <button class="klapp-btn" onclick="toggleTaktikFuhrpark(this)" style="background-color: #34495e; text-transform: none; margin-top: 5px;">▼ Fahrzeug-Auswahl einklappen</button>
+            
+            <div id="taktik-fuhrpark-wrapper" style="display: flex; flex-direction: column; gap: 6px; margin-top: 5px;">
+                <div style="font-size: 12px; color: #bdc3c7;">Verfügbare Fahrzeuge im Bereitstellungsraum:</div>
+                
+                <div id="fahrzeug-liste-container" style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- JS generiert -->
+                </div>
+                
+                <button class="btn-fuhrpark" onclick="document.getElementById('fuhrpark-modal').style.display='flex'">+ Neues Fahrzeug (Mein Fuhrpark) anlegen</button>
+                
+                <div style="background: #34495e; padding: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #7f8c8d; line-height: 1.5;">
+                    <strong>📊 Ressourcen-Pool (Verfügbar):</strong><br>
+                    <span style="color: #3498db;">2.000er Pumpen:</span> <span id="pool-2000" style="font-weight: bold;">0</span> | 
+                    <span style="color: #e74c3c;">1.000er Pumpen:</span> <span id="pool-1000" style="font-weight: bold;">0</span> | 
+                    <span style="color: #2ecc71;">B-Schläuche:</span> <span id="pool-schlauch" style="font-weight: bold;">0</span> m
+                </div>
+            </div>
+
+            <button class="button btn-calc" onclick="auswertenTaktisch()" style="width: 100%; max-width: none; margin-top: 5px; font-size: 16px;">🚀 Taktik-Optimierung Starten</button>
+        </div>
+		
+		<!-- NEU: Taktik Dashboard & Tabelle -->
+        <div id="taktik-dashboard">
+            <div class="hud-box" id="hud-main">
+                <div class="hud-title" id="hud-headline">🚀 EMPFEHLUNG: LÄDT...</div>
+                
+                <div class="hud-bar-container">
+                    <div class="hud-bar-row">
+                        <span style="width: 80px;">Schläuche:</span>
+                        <div class="hud-bar-bg"><div class="hud-bar-fill" id="bar-schlauch" style="background: #2ecc71;"></div></div>
+                        <span id="hud-schlauch-text" style="width: 100px; text-align: right;">0 / 0</span>
+                    </div>
+                    <div class="hud-bar-row">
+                        <span style="width: 80px;">Pumpen:</span>
+                        <div class="hud-bar-bg"><div class="hud-bar-fill" id="bar-pumpen" style="background: #9b59b6;"></div></div>
+                        <span id="hud-pumpen-text" style="width: 100px; text-align: right;">0 / 0</span>
+                    </div>
+                </div>
+                
+                <div class="hud-alert" id="hud-engpass"></div>
+                <div class="hud-alert" id="hud-reserve" style="display: block; margin-top: 5px; background: rgba(243, 156, 18, 0.2); border-color: #f39c12; color: #f39c12;">
+                    <!-- Hier kommt die Nachforderung rein -->
+                </div>
+            </div>
+            
+            <table class="taktik-tabelle">
+                <thead>
+                    <tr>
+                        <th>Station</th>
+                        <th>Zuzuweisendes Material & Auftrag</th>
+                        <th>Schlauchbedarf bis nächste Station</th>
+                    </tr>
+                </thead>
+                <tbody id="taktik-tabellen-body">
+                    <!-- Wird per JS gefüllt -->
+                </tbody>
+            </table>
+        </div>
+		
         <div id="eingabe-leiste">
             <div class="eingabe-gruppe" style="min-width: 80px; flex: 0 0 auto;">
                 <label>Strecke:</label>
@@ -518,7 +716,256 @@
 
     
     <script>
-        // --- Reibungsverlust Interpolations-Hilfen ---
+        
+		// --- NEU: Umschalt-Logik über den Floating-Button ---
+        let aktuellerModus = 'klassisch';
+
+		function toggleModus() {
+            let btn = document.getElementById('btn-taktik-toggle');
+            
+            if (aktuellerModus === 'klassisch') {
+                // HIER GEÄNDERT: isPremium statt isProUser
+                if (!isPremium) { 
+                    alert("🔒 Das Taktik-Modul ist eine Premium-Funktion. Bitte upgrade auf Pro, um dieses Planungswerkzeug freizuschalten.");
+                    zeigePremiumWerbung(); // Zeigt direkt das Stripe-Fenster
+                    return; 
+                }
+
+                aktuellerModus = 'taktisch';
+                btn.innerHTML = '<span style="font-size: 16px;">📟</span> Taktik: EIN';
+                btn.style.background = '#2980b9'; 
+                btn.style.color = 'white';
+                
+                document.getElementById('eingabe-leiste').style.display = 'none';
+                document.getElementById('taktik-leiste').style.display = 'flex';
+                
+                if (typeof initFahrzeuge === 'function') initFahrzeuge();
+                
+            } else {
+                // Zurück zu Klassisch
+                aktuellerModus = 'klassisch';
+                btn.innerHTML = '<span style="font-size: 16px;">🚀</span> Taktik: AUS';
+                btn.style.background = 'white';
+                btn.style.color = '#2c3e50';
+                
+                document.getElementById('eingabe-leiste').style.display = 'flex';
+                document.getElementById('taktik-leiste').style.display = 'none';
+                
+                // NEU: Versteckt das Taktik-Ergebnis beim Wechsel
+                let dash = document.getElementById('taktik-dashboard'); 
+                if (dash) dash.style.display = 'none';
+            }
+            
+            streckeLoeschen(false);
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+		
+		// ==========================================
+        // --- TAKTIK-MODUL: DATEN & LOGIK ---
+        // ==========================================
+
+        // 1. Die fest hinterlegten Normfahrzeuge
+        const normFahrzeuge = [
+            { id: 'lf10', name: 'LF 10 / HLF 10', fpn: 1000, schlauch: 14, pfpn: 0, isNorm: true },
+            { id: 'lf20', name: 'LF 20 / HLF 20', fpn: 2000, schlauch: 14, pfpn: 0, isNorm: true },
+            { id: 'lf20kats', name: 'LF 20 KatS', fpn: 2000, schlauch: 30, pfpn: 0, isNorm: true },
+            { id: 'tlf2000', name: 'TLF 2000', fpn: 1000, schlauch: 4, pfpn: 0, isNorm: true },
+            { id: 'tlf3000', name: 'TLF 3000 / TLF 4000', fpn: 2000, schlauch: 6, pfpn: 0, isNorm: true },
+            { id: 'tsf', name: 'TSF / TSF-W / KLF', fpn: 1000, schlauch: 10, pfpn: 0, isNorm: true },
+            { id: 'sw2000', name: 'GW-L2 / SW 2000', fpn: 0, schlauch: 100, pfpn: 0, isNorm: true }, // 2000m = 100 B-Schläuche
+            { id: 'sw1000', name: 'SW 1000', fpn: 0, schlauch: 50, pfpn: 0, isNorm: true } // 1000m = 50 B-Schläuche
+        ];
+
+        let aktuellerFuhrpark = [];
+
+		// 2. Initialisierung: Fahrzeuge aus Supabase laden (Asynchron)
+        // --- Fuhrpark-Funktionen korrigiert (supabaseClient statt supabase) ---
+        async function initFahrzeuge() {
+            if (!supabaseClient) return;
+            try {
+                const { data: dbFahrzeuge, error } = await supabaseClient
+                    .from('eigene_fahrzeuge')
+                    .select('*');
+
+                if (error) throw error;
+
+                let eigeneFahrzeuge = (dbFahrzeuge || []).map(fz => ({
+                    id: fz.id,
+                    name: fz.name,
+                    fpn: fz.fpn,
+                    schlauch: fz.schlauch,
+                    pfpn: fz.pfpn,
+                    isNorm: false 
+                }));
+
+                aktuellerFuhrpark = [...normFahrzeuge, ...eigeneFahrzeuge].map(fz => {
+                    return { ...fz, count: 0, hasZusatzPfpn: false };
+                });
+                
+                baueFahrzeugListe();
+            } catch (err) {
+                console.error("Fehler beim Laden der Fahrzeuge:", err);
+            }
+        }
+        // 3. HTML-Liste generieren
+        // 3. HTML-Liste generieren (KORRIGIERT: Zeigt jetzt auch Meter an)
+        function baueFahrzeugListe() {
+            const container = document.getElementById('fahrzeug-liste-container');
+            if (!container) return;
+            
+            container.innerHTML = ''; 
+
+            aktuellerFuhrpark.forEach((fz, index) => {
+                // Info-Text mit automatischer 20m-Multiplikation
+                let infoText = `↳ ${fz.schlauch} B-Schläuche (${fz.schlauch * 20} m)`;
+                
+                if (fz.fpn > 0) infoText += ` | FPN ${fz.fpn === 2000 ? '10-2000' : '10-1000'}`;
+                if (!fz.isNorm && fz.pfpn > 0) infoText += ` | PFPN: ${fz.pfpn}`;
+
+                let extraHTML = '';
+                if (fz.isNorm) {
+                    extraHTML = `
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px; color: #bdc3c7; cursor: pointer;">
+                            <input type="checkbox" onchange="toggleZusatzPfpn(${index}, this.checked)" ${fz.hasZusatzPfpn ? 'checked' : ''}>
+                            Zusätzliche PFPN verladen
+                        </label>
+                    `;
+                } else {
+                    extraHTML = `
+                        <div style="font-size: 11px; margin-top: 4px; color: #e74c3c; cursor: pointer;" onclick="loescheEigenesFahrzeug('${fz.id}')">
+                            🗑️ Fahrzeug löschen
+                        </div>
+                    `;
+                }
+
+                const zeile = document.createElement('div');
+                zeile.className = 'fahrzeug-zeile';
+                zeile.innerHTML = `
+                    <div class="fahrzeug-info">
+                        <strong>${fz.name}</strong>
+                        <span style="font-size: 11px; color: #bdc3c7;">${infoText}</span>
+                        ${extraHTML}
+                    </div>
+                    <div class="fahrzeug-steuerung">
+                        <button class="btn-minus" onclick="aendereFahrzeugAnzahl(${index}, -1)">-</button>
+                        <span style="font-weight: bold; width: 20px; text-align: center;">${fz.count}</span>
+                        <button class="btn-plus" onclick="aendereFahrzeugAnzahl(${index}, 1)">+</button>
+                    </div>
+                `;
+                container.appendChild(zeile);
+            });
+
+            berechneRessourcenPool(); 
+        }
+
+        // 4. Steuerungs-Funktionen (+ / - und Checkbox)
+        function aendereFahrzeugAnzahl(index, delta) {
+            aktuellerFuhrpark[index].count += delta;
+            if (aktuellerFuhrpark[index].count < 0) aktuellerFuhrpark[index].count = 0;
+            baueFahrzeugListe();
+        }
+
+        function toggleZusatzPfpn(index, isChecked) {
+            aktuellerFuhrpark[index].hasZusatzPfpn = isChecked;
+            berechneRessourcenPool();
+        }
+
+		// 5. Eigene Fahrzeuge anlegen (Supabase INSERT)
+       async function speichereEigenesFahrzeug() {
+            const name = document.getElementById('fp-name').value.trim();
+            const fpn = parseInt(document.getElementById('fp-fpn').value);
+            const schlauch = parseInt(document.getElementById('fp-schlauch').value) || 0;
+            const pfpn = parseInt(document.getElementById('fp-pfpn').value) || 0;
+
+            if (!name) {
+                alert('Bitte einen Fahrzeugnamen eingeben.');
+                return;
+            }
+
+            if (!supabaseClient) {
+                alert("Datenbank nicht verbunden.");
+                return;
+            }
+
+            try {
+                const { data: userData } = await supabaseClient.auth.getUser();
+                if (!userData.user) throw new Error("Nicht eingeloggt");
+
+                const neuesFz = {
+                    user_id: userData.user.id,
+                    name: name,
+                    fpn: fpn,
+                    schlauch: schlauch,
+                    pfpn: pfpn
+                };
+
+                const { error } = await supabaseClient
+                    .from('eigene_fahrzeuge')
+                    .insert([neuesFz]);
+
+                if (error) throw error;
+
+                document.getElementById('fp-name').value = '';
+                document.getElementById('fp-fpn').value = '0';
+                document.getElementById('fp-schlauch').value = '0';
+                document.getElementById('fp-pfpn').value = '0';
+                document.getElementById('fuhrpark-modal').style.display = 'none';
+
+                await initFahrzeuge(); 
+            } catch (err) {
+                console.error("Fehler beim Speichern:", err);
+                alert("Das Fahrzeug konnte nicht gespeichert werden.");
+            }
+        }
+
+        async function loescheEigenesFahrzeug(id) {
+            if (!confirm('Möchtest du dieses Fahrzeug wirklich dauerhaft aus deinem Fuhrpark löschen?')) return;
+            if (!supabaseClient) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('eigene_fahrzeuge')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                await initFahrzeuge(); 
+            } catch (err) {
+                console.error("Fehler beim Löschen:", err);
+                alert("Fahrzeug konnte nicht gelöscht werden.");
+            }
+        }
+
+        // 6. Das Gehirn des Warenkorbs: Pool berechnen
+        function berechneRessourcenPool() {
+            let total2000 = 0;
+            let total1000 = 0;
+            let totalSchlaeucheStueck = 0; // Zählt intern die reinen Stückzahlen
+
+            aktuellerFuhrpark.forEach(fz => {
+                if (fz.count > 0) {
+                    totalSchlaeucheStueck += fz.count * fz.schlauch;
+
+                    if (fz.fpn === 2000) total2000 += fz.count;
+                    if (fz.fpn === 1000) total1000 += fz.count;
+
+                    if (!fz.isNorm && fz.pfpn > 0) {
+                        total1000 += (fz.count * fz.pfpn);
+                    }
+
+                    if (fz.isNorm && fz.hasZusatzPfpn) {
+                        total1000 += fz.count; 
+                    }
+                }
+            });
+
+            // Ausgabe in der Status-Box unten: Stückzahl * 20m !
+            document.getElementById('pool-2000').innerText = total2000;
+            document.getElementById('pool-1000').innerText = total1000;
+            document.getElementById('pool-schlauch').innerText = totalSchlaeucheStueck * 20; 
+        }
+		
+		// --- Reibungsverlust Interpolations-Hilfen ---
         const reibungstabelleB = {
             200: 0.10, 250: 0.15, 300: 0.20, 350: 0.25, 400: 0.30, 450: 0.35, 500: 0.40, 550: 0.50, 
             600: 0.60, 650: 0.70, 700: 0.80, 750: 0.95, 800: 1.10, 850: 1.25, 900: 1.40, 950: 1.55, 
@@ -795,6 +1242,25 @@
         var overlayMaps = { "🚒 Hydranten anzeigen": ofmLayer };
         L.control.layers(baseMaps, overlayMaps).addTo(map);
         // --- ENDE MAP INITIALISIERUNG ---
+		
+		// --- NEU: Taktik-Button als natives Leaflet-Element ---
+        var TaktikControl = L.Control.extend({
+            options: { position: 'topright' }, // Setzt ihn in die obere rechte Ecke
+            onAdd: function (map) {
+                var btn = L.DomUtil.create('button', 'taktik-map-btn');
+                btn.id = 'btn-taktik-toggle';
+                btn.innerHTML = '<span style="font-size: 16px;">🚀</span> Taktik: AUS';
+                
+                // Extrem wichtig: Verhindert, dass beim Klicken ein Punkt auf die Karte gemalt wird!
+                L.DomEvent.disableClickPropagation(btn);
+                
+                btn.onclick = function() {
+                    toggleModus();
+                };
+                return btn;
+            }
+        });
+        map.addControl(new TaktikControl());
         
         var punkteListe = []; 
         var markerListe = []; 
@@ -869,8 +1335,17 @@
         function aktualisiereDistanz() {
             gesamtDistanz = 0;
             for (let i = 1; i < punkteListe.length; i++) gesamtDistanz += punkteListe[i-1].distanceTo(punkteListe[i]);
+            
+            // Update in beiden Menüs
             document.getElementById('distanzAnzeige').innerText = Math.round(gesamtDistanz) + ' m';
+            let taktDist = document.getElementById('taktik-distanzAnzeige');
+            if (taktDist) taktDist.innerText = Math.round(gesamtDistanz) + ' m';
+
+            // Alle alten Ergebnisboxen verstecken
             document.getElementById('ergebnis-box').style.display = 'none';
+            let dash = document.getElementById('taktik-dashboard');
+            if (dash) dash.style.display = 'none';
+            
             document.getElementById('feintuning-wrapper').style.display = 'none';
             document.getElementById('feintuning-box').style.display = 'none';
             document.getElementById('pendelverkehr-wrapper').style.display = 'none';
@@ -881,9 +1356,33 @@
             symboleLayer.clearLayers(); 
         }
 
+        // NEU: Klappfunktion für die Taktik-Fahrzeugliste
+        function toggleTaktikFuhrpark(btn) {
+            let wrapper = document.getElementById('taktik-fuhrpark-wrapper');
+            if (wrapper.style.display === 'none') {
+                wrapper.style.display = 'flex';
+                btn.innerHTML = '▼ Fahrzeug-Auswahl einklappen';
+            } else {
+                wrapper.style.display = 'none';
+                btn.innerHTML = '▶ Fahrzeug-Auswahl ausklappen';
+            }
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+		// Menü für Speicher & Laden ein- und ausklappen
         function toggleSpeicher() {
             var leiste = document.getElementById('speicher-leiste');
-            leiste.style.display = leiste.style.display === 'none' ? 'flex' : 'none';
+            var btn = document.getElementById('toggleSpeicherBtn');
+            
+            // Prüft sicherheitshalber auf 'none' UND auf einen leeren String
+            if (leiste.style.display === 'none' || leiste.style.display === '') {
+                leiste.style.display = 'flex';
+                btn.innerHTML = '💾 Speichermenü ausblenden ▲';
+            } else {
+                leiste.style.display = 'none';
+                btn.innerHTML = '💾 Speichermenü einblenden ▼';
+            }
+            
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
@@ -1919,6 +2418,302 @@
                 alert("Supabase ist nicht verbunden. Feedback konnte nicht gesendet werden.");
             }
         }	
+		
+		// ==========================================
+        // --- TAKTISCHER ALGORITHMUS & DASHBOARD ---
+        // ==========================================
+
+        // ==========================================
+        // --- TAKTISCHER ALGORITHMUS & DASHBOARD ---
+        // ==========================================
+
+        async function auswertenTaktisch() {
+            if (punkteListe.length < 2) { 
+                alert("Bitte zeichne zuerst eine Strecke auf der Karte ein."); 
+                return; 
+            }
+
+            let avail2000 = parseInt(document.getElementById('pool-2000').innerText);
+            let avail1000 = parseInt(document.getElementById('pool-1000').innerText);
+            let availHoses = Math.floor(parseInt(document.getElementById('pool-schlauch').innerText) / 20); 
+
+            if (availHoses === 0) {
+                alert("Dein Bereitstellungsraum ist leer. Bitte wähle Fahrzeuge aus.");
+                return;
+            }
+
+            let btn = document.querySelector('#taktik-leiste .btn-calc');
+            let altText = btn.innerText;
+            btn.innerText = "⏳ Optimiere...";
+            btn.disabled = true;
+
+            if (globaleHoehen.length === 0 || globaleDichtePunkte.length === 0) {
+                globaleDichtePunkte = interpoliereStrecke(punkteListe, 20);
+                await ladeHoehenFuerDichtePunkte(globaleDichtePunkte);
+            }
+
+            const flowRates = [2000, 1800, 1600, 1400, 1200, 1000, 800, 600, 400];
+            let bestResult = null;
+            let firstFailReason = null;
+
+            for (let flow of flowRates) {
+                // 1. VERSUCH: Ideallinie (Doppelleitung für > 800 l/min, um Pumpen zu sparen)
+                let resIdeal = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, false);
+                if (resIdeal.success) {
+                    bestResult = resIdeal;
+                    break;
+                } else if (!firstFailReason) {
+                    firstFailReason = resIdeal; // Merke den Fehler bei 2000 l/min für die Ausgabe
+                }
+
+                // 2. VERSUCH (DIE PUMPEN-INTELLIGENZ): 
+                // Wenn die Doppelleitung NUR an fehlenden Schläuchen gescheitert ist, 
+                // zwingen wir das System in den "Hochdruck-Modus" auf einer Einfachleitung!
+                if (!resIdeal.success && resIdeal.reason === 'schläuche' && flow > 800) {
+                    let resSingle = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, true);
+                    if (resSingle.success) {
+                        bestResult = resSingle;
+                        break;
+                    }
+                }
+            }
+
+            btn.innerText = altText;
+            btn.disabled = false;
+
+            if (!bestResult) {
+                zeigeTaktikFehler(firstFailReason);
+                return;
+            }
+
+            zeichneTaktikErgebnis(bestResult, firstFailReason, avail2000, avail1000, availHoses);
+        }
+
+        async function ladeHoehenFuerDichtePunkte(punkte) {
+            let chunkSize = 90; 
+            let fetchPromises = [];
+            for (let i = 0; i < punkte.length; i += chunkSize) {
+                let chunk = punkte.slice(i, i + chunkSize);
+                let lats = chunk.map(p => p.lat.toFixed(5));
+                let lons = chunk.map(p => p.lng.toFixed(5));
+                fetchPromises.push(
+                    fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`)
+                    .then(res => res.json())
+                );
+            }
+            try {
+                let results = await Promise.all(fetchPromises);
+                globaleHoehen = [];
+                results.forEach(data => { if(data.elevation) globaleHoehen = globaleHoehen.concat(data.elevation); });
+            } catch (e) {
+                console.error("Höhen-API Fehler", e);
+            }
+        }
+
+        function simuliereTaktikStrecke(targetFlow, avail2000, avail1000, availHoses, forceSingleLine = false) {
+            let isDouble = (targetFlow > 800) && !forceSingleLine; 
+            let lines = isDouble ? 2 : 1;
+            let flowPerLine = targetFlow / lines;
+            
+            let reibung = getBVerlust(flowPerLine); 
+            let totalHosesNeeded = Math.ceil(gesamtDistanz / 20) * lines;
+
+            if (totalHosesNeeded > availHoses) {
+                return { success: false, reason: 'schläuche', needed: totalHosesNeeded };
+            }
+
+            let currentDruck = 10.0; 
+            let used2000 = 0;
+            let used1000 = 0;
+            let stations = []; 
+
+            let p1 = weisePumpeZu(targetFlow, avail2000 - used2000, avail1000 - used1000, isDouble);
+            if (!p1) return { success: false, reason: 'pumpen_start' };
+            
+            used2000 += p1.u2000; used1000 += p1.u1000;
+            stations.push({ pIdx: 0, conf: p1 });
+
+            let distanzSeitLetzterPumpe = 0;
+
+            for (let i = 1; i < globaleDichtePunkte.length; i++) {
+                let dist = globaleDichtePunkte[i-1].distanceTo(globaleDichtePunkte[i]);
+                distanzSeitLetzterPumpe += dist;
+                let hDiff = globaleHoehen[i] - globaleHoehen[i-1];
+                
+                currentDruck -= (dist/100 * reibung) + (hDiff/10);
+
+                let isLast = (i === globaleDichtePunkte.length - 1);
+                let kritischerDruck = isLast ? 5.0 : 1.5; 
+
+                if (currentDruck <= kritischerDruck && !isLast) {
+                    let conf = weisePumpeZu(targetFlow, avail2000 - used2000, avail1000 - used1000, isDouble);
+                    if (!conf) return { success: false, reason: 'pumpen_strecke', stationNum: stations.length + 1 };
+                    
+                    used2000 += conf.u2000; used1000 += conf.u1000;
+                    
+                    stations[stations.length - 1].distanz = distanzSeitLetzterPumpe - dist;
+                    stations[stations.length - 1].schlaeuche = Math.ceil((distanzSeitLetzterPumpe - dist) / 20) * lines;
+                    
+                    stations.push({ pIdx: i-1, conf: conf });
+                    
+                    currentDruck = 10.0 - (dist/100 * reibung) - (hDiff/10);
+                    distanzSeitLetzterPumpe = dist;
+                }
+            }
+
+            stations[stations.length - 1].distanz = distanzSeitLetzterPumpe;
+            stations[stations.length - 1].schlaeuche = Math.ceil(distanzSeitLetzterPumpe / 20) * lines;
+
+            return { success: true, flow: targetFlow, isDouble: isDouble, reqHoses: totalHosesNeeded, req2000: used2000, req1000: used1000, stations: stations };
+        }
+
+        function weisePumpeZu(flow, free2000, free1000, isDouble) {
+            if (flow > 1000) {
+                if (free2000 >= 1) return { text: "1x 2.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist Hochdruck-Einfachleitung", u2000: 1, u1000: 0, isSplit: false };
+                if (free1000 >= 2) return { text: "2x 1.000er Pumpe", desc: isDouble ? "Parallelbetrieb: Je Pumpe 1 Trasse" : "Parallelbetrieb: Speisen über Sammelstück in eine Trasse", u2000: 0, u1000: 2, isSplit: true }; 
+                return null;
+            } else {
+                if (free1000 >= 1) return { text: "1x 1.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist einfache Leitung", u2000: 0, u1000: 1, isSplit: false };
+                if (free2000 >= 1) return { text: "1x 2.000er Pumpe (Reduziert)", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist einfache Leitung", u2000: 1, u1000: 0, isSplit: false };
+                return null;
+            }
+        }
+
+        function zeichneTaktikErgebnis(result, initialFail, avail2000, avail1000, availHoses) {
+            document.getElementById('taktik-dashboard').style.display = 'flex';
+            
+            // NEU: Riesige l/min Anzeige im HUD
+            document.getElementById('hud-headline').innerHTML = `
+                <div style="font-size: 11px; color: #bdc3c7; font-weight: normal; letter-spacing: 1px;">TAKTIK-EMPFEHLUNG</div>
+                <div style="font-size: 42px; color: #fff; line-height: 1.1; margin: 6px 0;">${result.flow} <span style="font-size: 20px; color:#2ecc71;">l/min</span></div>
+                <div style="font-size: 14px; color: #f1c40f; text-transform: none; font-weight: normal; margin-top: 4px;">
+                    ${result.isDouble ? '🔀 Über parallel geführte Doppelleitung' : '➡️ Über materialsparende Einfachleitung'}
+                </div>
+            `;
+            
+            let totalAvailPumpen = avail2000 + avail1000;
+            let totalUsedPumpen = result.req2000 + result.req1000;
+            
+            document.getElementById('bar-schlauch').style.width = Math.min((result.reqHoses / availHoses) * 100, 100) + '%';
+            document.getElementById('hud-schlauch-text').innerText = `${result.reqHoses} / ${availHoses} B`;
+            
+            document.getElementById('bar-pumpen').style.width = Math.min((totalUsedPumpen / totalAvailPumpen) * 100, 100) + '%';
+            document.getElementById('hud-pumpen-text').innerText = `${totalUsedPumpen} / ${totalAvailPumpen} Stk.`;
+
+            let engpassBox = document.getElementById('hud-engpass');
+            if (result.flow < 2000 && initialFail) {
+                engpassBox.style.display = 'block';
+                if (initialFail.reason === 'schläuche') {
+                    engpassBox.innerHTML = `🚨 <b>Limitierung:</b> Für eine ideale 2.000 l/min Doppelleitung fehlen ${(initialFail.needed - availHoses)} B-Schläuche.`;
+                } else {
+                    engpassBox.innerHTML = `🚨 <b>Limitierung:</b> Für 2.000 l/min fehlt Pumpenleistung ab Station ${initialFail.stationNum || 1}.`;
+                }
+                document.getElementById('hud-main').style.borderLeftColor = "#f39c12"; 
+            } else {
+                engpassBox.style.display = 'none';
+                document.getElementById('hud-main').style.borderLeftColor = "#2ecc71"; 
+            }
+
+            let reserveBox = document.getElementById('hud-reserve');
+            let requiredReserveHoses = Math.ceil(result.reqHoses * 0.2);
+            let requiredReservePumps = Math.ceil(totalUsedPumpen / 4);
+            
+            let missingHoses = Math.max(0, requiredReserveHoses - (availHoses - result.reqHoses));
+            let missingPumps = Math.max(0, requiredReservePumps - (totalAvailPumpen - totalUsedPumpen));
+
+            if (missingHoses > 0 || missingPumps > 0) {
+                reserveBox.innerHTML = `⚠️ <b>Ausfallreserve nachfordern:</b> Es fehlen normativ noch <b>${missingHoses} B-Schläuche</b> und <b>${missingPumps} Pumpen</b> als stille Reserve.`;
+                reserveBox.style.display = 'block';
+            } else {
+                reserveBox.style.display = 'none';
+            }
+
+            let tbody = document.getElementById('taktik-tabellen-body');
+            tbody.innerHTML = '';
+            
+            result.stations.forEach((st, idx) => {
+                let pNum = idx + 1;
+                let isStart = (idx === 0);
+                let label = isStart ? `P1 (Start)` : `P${pNum} (Station)`;
+                
+                let trassenInfo = "";
+                if (result.isDouble) {
+                    let half = Math.ceil(st.schlaeuche / 2);
+                    if (st.conf.isSplit) {
+                        trassenInfo = `<br>• Pumpe 1 an <span class="trasse-a">Trasse A</span> (${half} B)<br>• Pumpe 2 an <span class="trasse-b">Trasse B</span> (${half} B)`;
+                    } else {
+                        trassenInfo = `<br>• <span class="trasse-a">Trasse A</span> (${half} B)<br>• <span class="trasse-b">Trasse B</span> (${half} B)`;
+                    }
+                } else {
+                    trassenInfo = `<br>• <span class="trasse-a">Einfache Trasse</span> (${st.schlaeuche} B)`;
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${label}</b></td>
+                        <td><b>${st.conf.text}</b><br><span style="color:#bdc3c7; font-size:11px;">${st.conf.desc}</span></td>
+                        <td><b>${st.schlaeuche} B gesamt</b>${trassenInfo}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>Zielpunkt</b></td>
+                    <td><b>Übergabepunkt / Pufferbecken</b><br><span style="color:#bdc3c7; font-size:11px;">(Zusammenführung)</span></td>
+                    <td>-</td>
+                </tr>
+            `;
+
+            symboleLayer.clearLayers();
+            if (bSchlauchleitung) map.removeLayer(bSchlauchleitung);
+            
+            let lineColor = result.isDouble ? '#8e44ad' : '#e74c3c'; 
+            let lineWeight = result.isDouble ? 8 : 5;
+            
+            bSchlauchleitung = L.polyline(globaleDichtePunkte, {color: lineColor, weight: lineWeight, opacity: 0.8}).addTo(map);
+            
+            let mitteIdx = Math.floor(globaleDichtePunkte.length / 2);
+            let leitungsLabel = result.isDouble ? "[ 2x B-Trasse (A+B) ]" : "[ 1x B-Trasse ]";
+            L.marker(globaleDichtePunkte[mitteIdx], {
+                icon: L.divIcon({ className: '', html: `<div style="background:white; border:2px solid ${lineColor}; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px; color:${lineColor}; box-shadow: 0 2px 5px rgba(0,0,0,0.4); white-space:nowrap; margin-left:-50px; margin-top:-10px;">${leitungsLabel}</div>` })
+            }).addTo(symboleLayer);
+
+           result.stations.forEach((st, idx) => {
+                let pNum = idx + 1;
+                let mapLabel = `P${pNum}<br><span style="font-size:9px;">${st.conf.isSplit ? '[2x 1.000]' : (st.conf.u2000 ? '[2.000er]' : '[1.000er]')}</span>`;
+                
+                let pIcon = L.divIcon({ 
+                    className: '', 
+                    html: `<div class="icon-ts" style="background-color:#e74c3c; line-height:1.2; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-width:64px; padding:4px 6px; height:auto; border-radius:6px; box-shadow:0 0 10px rgba(0,0,0,0.5); white-space:nowrap;">${mapLabel}</div>`, 
+                    iconSize: [64, 44], 
+                    iconAnchor: [32, 22] 
+                });
+                L.marker(globaleDichtePunkte[st.pIdx], {icon: pIcon}).addTo(symboleLayer);
+            });
+
+            L.marker(globaleDichtePunkte[globaleDichtePunkte.length - 1], {icon: verteilerIcon, title: "Ziel"}).addTo(symboleLayer);
+            map.fitBounds(bSchlauchleitung.getBounds(), { padding: [30, 30] });
+        }
+
+        function zeigeTaktikFehler(failReason) {
+            document.getElementById('taktik-dashboard').style.display = 'flex';
+            document.getElementById('hud-headline').innerHTML = `<div style="font-size: 24px; color: #e74c3c; font-weight: bold;">❌ STRECKE NICHT MACHBAR</div>`;
+            document.getElementById('hud-main').style.borderLeftColor = "#c0392b";
+            document.getElementById('taktik-tabellen-body').innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 20px;">Keine Taktik möglich. Siehe Fehlermeldung.</td></tr>`;
+            
+            let engpassBox = document.getElementById('hud-engpass');
+            engpassBox.style.display = 'block';
+            
+            if (failReason && failReason.reason === 'schläuche') {
+                // NEU: Berechnet den absoluten Minimalbedarf für 1 einfache Leitung
+                let absoluteMinHoses = Math.ceil(gesamtDistanz / 20);
+                engpassBox.innerHTML = `🚨 <b>Abbruch:</b> Der Schlauchvorrat reicht nicht für eine Förderstrecke. (Es werden mind. ${absoluteMinHoses} B-Schläuche benötigt).`;
+            } else {
+                engpassBox.innerHTML = `🚨 <b>Abbruch:</b> Die vorhanden Pumpenleistung reicht nicht aus.`;
+            }
+            document.getElementById('hud-reserve').style.display = 'none';
+        }
     </script>
 
     <!-- Modal für die Stripe Preistabelle -->
