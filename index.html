@@ -1274,7 +1274,10 @@
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
         var symboleLayer = L.layerGroup().addTo(map); 
         var pufferbeckenZustand = {};
-
+		
+		// Speichert individuelle Leitungsarten für Streckenabschnitte (0 = Standard, 1 = Einfach, 2 = Doppel)
+        let abschnittsLeitungsart = {};
+		
         var startIcon = L.divIcon({ className: '', html: '<div class="icon-wasser">W</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
         var hfsIcon = L.divIcon({ className: '', html: '<div class="icon-hfs">HFS</div>', iconSize: [34, 34], iconAnchor: [17, 17] });
         var verteilerIcon = L.divIcon({ className: '', html: '<div class="icon-verteiler">V</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
@@ -1518,6 +1521,7 @@
         function streckeLoeschen(allesLeeren = true) {
             punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
             pufferbeckenZustand = {}; 
+			abschnittsLeitungsart = {};
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
             if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
             if(bSchlauchleitung) map.removeLayer(bSchlauchleitung);
@@ -1605,13 +1609,21 @@
             document.getElementById('api-status').innerText = "✅ Geladen";
 
             let volumen = parseInt(document.getElementById('volumenInput').value);
-            let leitungsart = parseInt(document.getElementById('leitungsartInput').value);
-            let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value);
+            let globalLeitungsart = parseInt(document.getElementById('leitungsartInput').value);
+            let pEntnahme = parseFloat(document.getElementById('entnahmeInput').value); // <-- Hier war der Fehler (Klammer korrigiert)
             let pAusgang = parseFloat(document.getElementById('ausgangsdruckInput').value);
             let pEingang = parseFloat(document.getElementById('eingangsdruckInput').value);
             let pZiel = parseFloat(document.getElementById('zieldruckInput').value);
             let hfsCount = parseInt(document.getElementById('hfsCountInput').value) || 0;
             let hfsMode = 10.0;
+            let maxFlowPerB = 800; 
+
+            // --- Trassen-Multiplikator frühzeitig definieren ---
+            let trassenMultiplikator = 1;
+            if (volumen > 2000 || (hfsCount > 0 && volumen > 800)) {
+                let reqLines = Math.ceil(volumen / maxFlowPerB);
+                trassenMultiplikator = Math.ceil(reqLines / globalLeitungsart);
+            }
 
             let pumpenStandardName = "PFPN 10-1000";
             if (volumen >= 1000 && volumen <= 2000) pumpenStandardName = "FPN 10-1500 / 2000";
@@ -1639,25 +1651,28 @@
             let distF_lokal = 0; 
             let distB = 0;
             let ubergabeIndex = -1;
-            let maximalerRuhedruck = 0;
-
-            let maxFlowPerB = 800; 
-            let trassenMultiplikator = 1;
-            
-            if (volumen > 2000 || (fSchlauchPhase && volumen > 800)) {
-                let reqLines = Math.ceil(volumen / maxFlowPerB);
-                trassenMultiplikator = Math.ceil(reqLines / leitungsart);
-            }
-            let berechnungsVolumenB = volumen / (trassenMultiplikator * leitungsart);
-            let reibungPro100m = getBVerlust(berechnungsVolumenB);
+            let maximalerRuhedruck = 0; 
 
             let laufendeDistanz = 0; 
             let speisenderDruckAktuell = ablaufDruck;
+            let aktuelleStationNummer = 1 + pumpenNummerOffset;
 
             for (let i = 1; i < dichtePunkte.length; i++) {
                 let dist = dichtePunkte[i-1].distanceTo(dichtePunkte[i]);
                 laufendeDistanz += dist;
                 let hDiff = hoehen[i] - hoehen[i-1]; 
+
+                // HIER IST DIE MAGIE: Holt die Leitungsart für den aktuellen Abschnitt (Fallback auf Global)
+                let aktiveLeitungsart = abschnittsLeitungsart[aktuelleStationNummer] !== undefined ? 
+                                        abschnittsLeitungsart[aktuelleStationNummer] : globalLeitungsart;
+
+                let trassenMultiplikator = 1;
+                if (volumen > 2000 || (fSchlauchPhase && volumen > 800)) {
+                    let reqLines = Math.ceil(volumen / maxFlowPerB);
+                    trassenMultiplikator = Math.ceil(reqLines / aktiveLeitungsart);
+                }
+                let berechnungsVolumenB = volumen / (trassenMultiplikator * aktiveLeitungsart);
+                let reibungPro100m = getBVerlust(berechnungsVolumenB);
                 
                 if (fSchlauchPhase) {
                     distF += dist;
@@ -1685,6 +1700,7 @@
                                 ablaufDruck = pAusgang;
                                 indexLetztePumpe = i;
                                 speisenderDruckAktuell = pAusgang;
+                                aktuelleStationNummer++; // Nächste Station erreicht
                             } else {
                                 speisenderDruckAktuell = ablaufDruck; 
                             }
@@ -1712,9 +1728,17 @@
                     if (ablaufDruck <= kritischerDruck || erzwingePumpeHier) {
                         anzahlPumpenStationen++;
                         pumpenIndizes.push(i-1);
-                        ablaufDruck = pAusgang - (dist / 100 * reibungPro100m) - (hDiff / 10);
+                        
+                        // Neuberechnung für den neuen Abschnitt direkt anwenden
+                        let naechsteAktiveLeitung = abschnittsLeitungsart[pNumIdx + 1] !== undefined ? 
+                                                    abschnittsLeitungsart[pNumIdx + 1] : globalLeitungsart;
+                        let neuerTrassenMultiplikator = Math.ceil((volumen / maxFlowPerB) / naechsteAktiveLeitung);
+                        let neuerReibungsverlust = getBVerlust(volumen / (neuerTrassenMultiplikator * naechsteAktiveLeitung));
+
+                        ablaufDruck = pAusgang - (dist / 100 * neuerReibungsverlust) - (hDiff / 10);
                         speisenderDruckAktuell = pAusgang;
                         indexLetztePumpe = i-1;
+                        aktuelleStationNummer++; // Zählt für den nächsten Abschnitt hoch
                     }
                 }
             }
@@ -1786,7 +1810,7 @@
                 prevPIdx = ubergabeIndex; 
             }
 
-            pumpenIndizes.forEach((pIdx, idx) => {
+			pumpenIndizes.forEach((pIdx, idx) => {
                 let pNum = idx + 1 + pumpenNummerOffset;
                 let bgColor = pufferbeckenZustand[pNum] ? 'background-color: #9b59b6;' : '';
                 
@@ -1806,7 +1830,9 @@
                 let utmP = getUTM(dichtePunkte[pIdx].lat, dichtePunkte[pIdx].lng);
                 let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, pIdx, dichtePunkte);
                 let abgerundetDist = Math.round(distZuVorher);
-                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (trassenMultiplikator * leitungsart);
+                
+                // KORREKTUR 1: globalLeitungsart statt leitungsart
+                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (trassenMultiplikator * globalLeitungsart); 
 
                 let trasseText = trassenMultiplikator > 1 ? `[${trassenMultiplikator}x] ` : "";
                 
@@ -1837,7 +1863,8 @@
                 let fStueckZiel = Math.ceil(distZuVorherZiel / 50);
                 coordHtml += `<tr><td style="padding:4px; color:#f39c12; font-weight:bold;">F-5B (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${fStueckZiel} F)</td></tr></tbody></table>`;
             } else {
-                let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * (trassenMultiplikator * leitungsart);
+                // KORREKTUR 2: globalLeitungsart statt leitungsart
+                let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * (trassenMultiplikator * globalLeitungsart);
                 coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
             }
 
@@ -1847,7 +1874,10 @@
             }
 
             let totalePumpen = (anzahlPumpenStationen + pumpenNummerOffset) * trassenMultiplikator;
-            let totaleBSchlaeuche = Math.ceil(distB / 20) * (trassenMultiplikator * leitungsart);
+            
+            // KORREKTUR 3: globalLeitungsart statt leitungsart
+            let totaleBSchlaeuche = Math.ceil(distB / 20) * (trassenMultiplikator * globalLeitungsart);
+            
             let reservePumpen = totalePumpen > 0 ? Math.ceil(totalePumpen / 4) : 0;
             let reserveSchlaeuche = Math.ceil(totaleBSchlaeuche / 5);
 
@@ -1916,24 +1946,38 @@
 
             container.innerHTML = "";
             
-            // NEU: Eingabefeld für die Startpumpe (P1), falls vorhanden
+            // Holt sich den aktuell eingestellten Standard-Wert aus dem Hauptmenü (als Fallback)
+            let defaultLeitung = parseInt(document.getElementById('leitungsartInput').value) || 1;
+            
+            // Eingabefeld für die Startpumpe (P1), falls vorhanden
             if (pumpenNummerOffset === 1) {
                 let p1Name = pumpenNamen[1] || "";
+                let isCheckedP1 = pufferbeckenZustand[1] ? "checked" : "";
+                
                 let zeileP1 = document.createElement('div');
                 zeileP1.className = "pumpe-slider-zeile";
                 zeileP1.style.flexDirection = "column";
                 zeileP1.style.alignItems = "stretch";
                 zeileP1.style.gap = "6px";
                 zeileP1.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <span style="font-weight:bold; color: #e74c3c;">Startpumpe P1:</span>
-                        <span style="font-size: 10px; color:#bdc3c7;">(Fester Standort am Start)</span>
-                    </div>
-                    <div style="display: flex;">
+                    <div style="font-weight: bold; font-size: 13px; color: #ecf0f1; margin-bottom: 2px;">Pumpe P1 (Start)</div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
                         <input type="text" placeholder="Funkrufname (z.B. Fl Muster 1-43)" 
                                value="${p1Name}" 
                                oninput="updatePumpenName(1, this.value)" 
-                               style="width: 100%; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                               style="flex: 1; min-width: 120px; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="leitung_p_1" onchange="updateAbschnittsLeitung(1, this.value)" style="font-size: 11px; padding: 4px; background: #34495e; color: white; border: 1px solid #7f8c8d; border-radius: 3px; min-height: unset; width: auto; cursor: pointer;">
+                                <option value="1" ${(abschnittsLeitungsart[1] || defaultLeitung) == 1 ? 'selected' : ''}>Leitung: Einfach</option>
+                                <option value="2" ${(abschnittsLeitungsart[1] || defaultLeitung) == 2 ? 'selected' : ''}>Leitung: Doppel</option>
+                            </select>
+
+                            <label style="font-size: 11px; cursor:pointer; color:#bdc3c7; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                <input type="checkbox" id="check_p_1" ${isCheckedP1} onchange="togglePufferbecken(1, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                                Becken (0,1 bar)
+                            </label>
+                        </div>
                     </div>
                 `;
                 container.appendChild(zeileP1);
@@ -1960,29 +2004,42 @@
                 let isChecked = pufferbeckenZustand[pNum] ? "checked" : "";
                 let currentName = pumpenNamen[pNum] || "";
 
+                // NEU: Holt sich den aktuell eingestellten Standard-Wert aus dem Hauptmenü
+                let defaultLeitung = parseInt(document.getElementById('leitungsartInput').value) || 1;
+
                 let zeile = document.createElement('div');
                 zeile.className = "pumpe-slider-zeile";
                 zeile.style.flexDirection = "column";
                 zeile.style.alignItems = "stretch";
                 zeile.style.gap = "6px";
                 zeile.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                        <span style="font-weight:bold; min-width:45px; color: ${pufferbeckenZustand[pNum] ? '#9b59b6' : '#ecf0f1'};">Stat. ${pNum}:</span>
-                        <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)">
-                        <span id="label_p_${pNum}" style="min-width:50px; text-align:right;">${currentVal} m</span>
+                    <!-- HIER FEHLTE DER SLIDER: Name der Pumpe und der Schieberegler -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-weight: bold;">
+                        <span>Pumpe P${pNum}</span>
+                        <span id="label_p_${pNum}" style="color: #f1c40f;">${currentVal} m</span>
                     </div>
-                    
-                    <!-- NEU: Kompakte Zeile für Name und Pufferbecken in einem -->
+                    <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                        <input type="range" id="slider_p_${pNum}" min="${minMeter}" max="${maxDistM}" value="${currentVal}" step="10" oninput="aktualisiereSliderLabel(${pNum}, this.value)" style="width: 100%;">
+                    </div>
+
+                    <!-- Die kompakte Zeile für Name, Dropdown und Pufferbecken -->
                     <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
                         <input type="text" placeholder="Funkrufname" 
                                value="${currentName}" 
                                oninput="updatePumpenName(${pNum}, this.value)" 
-                               style="flex: 1; min-width: 120px; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
+                               style="flex: 1; min-width: 90px; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;">
                         
-                        <label style="font-size: 11px; cursor:pointer; color:#bdc3c7; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                            <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
-                            Becken (0,1 bar)
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="leitung_p_${pNum}" onchange="updateAbschnittsLeitung(${pNum}, this.value)" style="font-size: 11px; padding: 4px; background: #34495e; color: white; border: 1px solid #7f8c8d; border-radius: 3px; min-height: unset; width: auto; cursor: pointer;">
+                                <option value="1" ${(abschnittsLeitungsart[pNum] || defaultLeitung) == 1 ? 'selected' : ''}>Leitung: Einfach</option>
+                                <option value="2" ${(abschnittsLeitungsart[pNum] || defaultLeitung) == 2 ? 'selected' : ''}>Leitung: Doppel</option>
+                            </select>
+
+                            <label style="font-size: 11px; cursor:pointer; color:#bdc3c7; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                <input type="checkbox" id="check_p_${pNum}" ${isChecked} onchange="togglePufferbecken(${pNum}, this.checked)" style="width:16px; height:16px; cursor:pointer; margin:0;">
+                                Becken (0,1 bar)
+                            </label>
+                        </div>
                     </div>
                 `;
                 container.appendChild(zeile);
@@ -2173,6 +2230,21 @@
             });
             
             // Rufe die Hauptfunktion auf (false = UI nicht komplett neu aufbauen, nur updaten)
+            auswerten(vorschuesse, false);
+        }
+		
+		function updateAbschnittsLeitung(pNum, wert) {
+            abschnittsLeitungsart[pNum] = parseInt(wert);
+            
+            // Slider-Stände sichern, damit die Pumpen bei der Neuberechnung nicht zurückspringen
+            let vorschuesse = {};
+            let alleSlider = document.querySelectorAll('[id^="slider_p_"]');
+            alleSlider.forEach(s => {
+                let id = parseInt(s.id.replace('slider_p_', ''));
+                vorschuesse[id] = parseInt(s.value);
+            });
+            
+            // Triggert sofort die Berechnung neu (Schritt 2)
             auswerten(vorschuesse, false);
         }
 		
@@ -2622,7 +2694,7 @@
             let missingPumps = Math.max(0, requiredReservePumps - (totalAvailPumpen - totalUsedPumpen));
 
             if (missingHoses > 0 || missingPumps > 0) {
-                reserveBox.innerHTML = `⚠️ <b>Ausfallreserve nachfordern:</b> Es fehlen normativ noch <b>${missingHoses} B-Schläuche</b> und <b>${missingPumps} Pumpen</b> als stille Reserve.`;
+                reserveBox.innerHTML = `⚠️ <b>Ausfallreserve nachfordern:</b> Es fehlen normativ noch <b>${missingHoses} B-Schläuche</b> und <b>${missingPumps} Pumpen</b> als Reserve.`;
                 reserveBox.style.display = 'block';
             } else {
                 reserveBox.style.display = 'none';
@@ -2676,7 +2748,11 @@
             let mitteIdx = Math.floor(globaleDichtePunkte.length / 2);
             let leitungsLabel = result.isDouble ? "[ 2x B-Trasse (A+B) ]" : "[ 1x B-Trasse ]";
             L.marker(globaleDichtePunkte[mitteIdx], {
-                icon: L.divIcon({ className: '', html: `<div style="background:white; border:2px solid ${lineColor}; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px; color:${lineColor}; box-shadow: 0 2px 5px rgba(0,0,0,0.4); white-space:nowrap; margin-left:-50px; margin-top:-10px;">${leitungsLabel}</div>` })
+                icon: L.divIcon({ 
+                    className: '', 
+                    iconSize: null, // NEU: Erlaubt der Box, sich an den Text anzupassen
+                    html: `<div style="background:white; border:2px solid ${lineColor}; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px; color:${lineColor}; box-shadow: 0 2px 5px rgba(0,0,0,0.4); white-space:nowrap; width:max-content; transform:translate(-50%, -50%);">${leitungsLabel}</div>` 
+                })
             }).addTo(symboleLayer);
 
            result.stations.forEach((st, idx) => {
