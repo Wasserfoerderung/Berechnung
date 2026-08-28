@@ -265,41 +265,19 @@
             display: none; flex-direction: column; width: 100%; max-width: 1000px; gap: 10px;
         }
         .fahrzeug-zeile {
-            display: flex; justify-content: space-between; align-items: flex-start; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 6px; font-size: 13px; flex-wrap: wrap; gap: 12px; border-left: 3px solid transparent;
+            display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 8px 10px; border-radius: 6px; font-size: 13px; flex-wrap: wrap; gap: 8px; border-left: 3px solid transparent;
         }
         .fahrzeug-info {
-            display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px;
-        }
-        /* NEU: Rechter Block (Label + Stepper) klar als Einheit gruppiert */
-        .fahrzeug-anzahl-block {
-            display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0;
-        }
-        .fahrzeug-anzahl-label {
-            font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
-            color: #95a5a6; white-space: nowrap;
+            display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px;
         }
         .fahrzeug-steuerung {
-            display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 6px;
+            display: flex; align-items: center; gap: 10px;
         }
         .fahrzeug-steuerung button {
             width: 34px; height: 34px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;
         }
         .btn-plus { background: #27ae60; color: white; }
         .btn-minus { background: #e74c3c; color: white; }
-
-        /* NEU: PFPN-Zusatzoption als eigenständiger, unmissverständlicher Toggle-Chip */
-        .pfpn-toggle {
-            display: inline-flex; align-items: center; gap: 7px; margin-top: 2px; width: fit-content;
-            background: rgba(243, 156, 18, 0.15); border: 1px solid rgba(243, 156, 18, 0.5);
-            padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; color: #f6b93b; font-weight: bold;
-            transition: background 0.15s, border-color 0.15s;
-        }
-        .pfpn-toggle:hover { background: rgba(243, 156, 18, 0.25); }
-        .pfpn-toggle.aktiv { background: rgba(243, 156, 18, 0.35); border-color: #f39c12; color: #ffd580; }
-        /* Checkbox aus der globalen input{}-Regel (width:100%, min-height:44px) herauslösen */
-        .pfpn-toggle input[type="checkbox"] {
-            width: 16px; height: 16px; min-height: unset; padding: 0; margin: 0; cursor: pointer; accent-color: #f39c12; flex-shrink: 0;
-        }
         .btn-fuhrpark { background: #8e44ad; color: white; padding: 10px; font-size: 13px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-align: center; width: 100%; margin-top: 5px; }
 		
 		/* --- NEU: Styles für Taktik-Dashboard und Tabelle --- */
@@ -847,9 +825,9 @@
                 let extraHTML = '';
                 if (fz.isNorm) {
                     extraHTML = `
-                        <label class="pfpn-toggle ${fz.hasZusatzPfpn ? 'aktiv' : ''}" title="Lädt dieses Fahrzeug zusätzlich eine tragbare Pumpe (PFPN) mit?">
-                            <input type="checkbox" onchange="toggleZusatzPfpn(${index}, this.checked); this.closest('.pfpn-toggle').classList.toggle('aktiv', this.checked);" ${fz.hasZusatzPfpn ? 'checked' : ''}>
-                            <span>⚡ Zusatz-PFPN je Fahrzeug mitführen</span>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px; color: #bdc3c7; cursor: pointer;">
+                            <input type="checkbox" onchange="toggleZusatzPfpn(${index}, this.checked)" ${fz.hasZusatzPfpn ? 'checked' : ''}>
+                            Zusätzliche PFPN verladen
                         </label>
                     `;
                 } else {
@@ -868,17 +846,14 @@
                         <span style="font-size: 11px; color: #bdc3c7;">${infoText}</span>
                         ${extraHTML}
                     </div>
-                    <div class="fahrzeug-anzahl-block">
-                        <span class="fahrzeug-anzahl-label">🚒 Anzahl Fahrzeuge</span>
-                        <div class="fahrzeug-steuerung">
-                            <button class="btn-minus" onclick="aendereFahrzeugAnzahl(${index}, -1)">-</button>
-                            <span style="font-weight: bold; width: 20px; text-align: center;">${fz.count}</span>
-                            <button class="btn-plus" onclick="aendereFahrzeugAnzahl(${index}, 1)">+</button>
-                        </div>
+                    <div class="fahrzeug-steuerung">
+                        <button class="btn-minus" onclick="aendereFahrzeugAnzahl(${index}, -1)">-</button>
+                        <span style="font-weight: bold; width: 20px; text-align: center;">${fz.count}</span>
+                        <button class="btn-plus" onclick="aendereFahrzeugAnzahl(${index}, 1)">+</button>
                     </div>
                 `;
                 container.appendChild(zeile);
-			});
+			}
 
             berechneRessourcenPool(); 
         }
@@ -1545,7 +1520,6 @@
 
         function streckeLoeschen(allesLeeren = true) {
             punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
-            globaleDichtePunkte = []; globaleHoehen = [];
             pufferbeckenZustand = {}; 
 			abschnittsLeitungsart = {};
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
@@ -1899,6 +1873,7 @@
                 }
 
                 let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * (segmentMultiZiel * segmentLeitungZiel);
+                tatsaechlicheTotaleBSchlaeuche += benoetigteSchlaeucheZiel;
 
                 coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
             }
@@ -2105,6 +2080,7 @@
                 </div>
             `;
             container.appendChild(zeileZiel);
+            });
         }
 
        function berechnePendelverkehr() {
@@ -2704,11 +2680,7 @@
         function weisePumpeZu(flow, free2000, free1000, isDouble) {
             if (flow > 1000) {
                 if (free2000 >= 1) return { text: "1x 2.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist Hochdruck-Einfachleitung", u2000: 1, u1000: 0, isSplit: false };
-                // WICHTIG: 2x 1.000er Pumpen über Sammelstück in EINE Trasse sind bei einer Einfachleitung
-                // physikalisch nicht zulässig - die Parallelschaltung addiert die Fördermenge, nicht den Druck,
-                // und eine einzelne B-Leitung braucht für 2.000 l/min einen deutlich höheren Ausgangsdruck,
-                // als zwei FPN10-1000 liefern können. Nur bei einer Doppelleitung (je Pumpe eigene Trasse) zulässig.
-                if (isDouble && free1000 >= 2) return { text: "2x 1.000er Pumpe", desc: "Parallelbetrieb: Je Pumpe 1 Trasse", u2000: 0, u1000: 2, isSplit: true }; 
+                if (free1000 >= 2) return { text: "2x 1.000er Pumpe", desc: isDouble ? "Parallelbetrieb: Je Pumpe 1 Trasse" : "Parallelbetrieb: Speisen über Sammelstück in eine Trasse", u2000: 0, u1000: 2, isSplit: true }; 
                 return null;
             } else {
                 if (free1000 >= 1) return { text: "1x 1.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist einfache Leitung", u2000: 0, u1000: 1, isSplit: false };
