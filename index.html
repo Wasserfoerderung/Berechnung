@@ -206,7 +206,7 @@
             html, body { background: white !important; color: black !important; display: block; height: auto !important; margin: 0; padding: 0; overflow: visible !important; }
             #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; flex: none !important; }
             #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; max-height: none !important; overflow: visible !important; }
-            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer, #user-status-bar { display: none !important; }
+            #toggleSpeicherBtn, #speicher-leiste, #eingabe-leiste, #taktik-leiste, #taktik-dashboard, .klapp-wrapper, #druck-warnung-box, .koordinaten-steuerung, .leaflet-control-container, #legal-footer, #user-status-bar { display: none !important; }
             #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
             #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
             #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; overflow: visible !important; }
@@ -224,7 +224,7 @@
         body.pdf-mode, body.pdf-mode html { background: white !important; color: black !important; display: block; height: auto !important; margin: 0; padding: 0; overflow: visible !important; }
         body.pdf-mode #map { height: 500px !important; width: 100% !important; min-height: unset !important; border: 1px solid #000; margin-bottom: 8px; flex: none !important; }
         body.pdf-mode #info-bereich { background: white !important; color: black !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; gap: 6px !important; max-height: none !important; overflow: visible !important; }
-        body.pdf-mode #toggleSpeicherBtn, body.pdf-mode #speicher-leiste, body.pdf-mode #eingabe-leiste, body.pdf-mode .klapp-wrapper, body.pdf-mode #druck-warnung-box, body.pdf-mode .koordinaten-steuerung, body.pdf-mode .leaflet-control-container, body.pdf-mode #legal-footer, body.pdf-mode #user-status-bar { display: none !important; }
+        body.pdf-mode #toggleSpeicherBtn, body.pdf-mode #speicher-leiste, body.pdf-mode #eingabe-leiste, body.pdf-mode #taktik-leiste, body.pdf-mode #taktik-dashboard, body.pdf-mode .klapp-wrapper, body.pdf-mode #druck-warnung-box, body.pdf-mode .koordinaten-steuerung, body.pdf-mode .leaflet-control-container, body.pdf-mode #legal-footer, body.pdf-mode #user-status-bar { display: none !important; }
         body.pdf-mode #ergebnis-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
         body.pdf-mode #koordinaten-box { background: white !important; color: black !important; display: flex !important; border: 1px solid #bbb; padding: 6px !important; margin-top: 4px !important; break-inside: avoid; }
         body.pdf-mode #koordinaten-liste { display: block !important; background: white !important; color: black !important; border: none !important; padding: 0 !important; font-size: 14px !important; overflow: visible !important; }
@@ -265,19 +265,41 @@
             display: none; flex-direction: column; width: 100%; max-width: 1000px; gap: 10px;
         }
         .fahrzeug-zeile {
-            display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 8px 10px; border-radius: 6px; font-size: 13px; flex-wrap: wrap; gap: 8px; border-left: 3px solid transparent;
+            display: flex; justify-content: space-between; align-items: flex-start; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 6px; font-size: 13px; flex-wrap: wrap; gap: 12px; border-left: 3px solid transparent;
         }
         .fahrzeug-info {
-            display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px;
+            display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px;
+        }
+        /* NEU: Rechter Block (Label + Stepper) klar als Einheit gruppiert */
+        .fahrzeug-anzahl-block {
+            display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0;
+        }
+        .fahrzeug-anzahl-label {
+            font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+            color: #95a5a6; white-space: nowrap;
         }
         .fahrzeug-steuerung {
-            display: flex; align-items: center; gap: 10px;
+            display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 6px;
         }
         .fahrzeug-steuerung button {
             width: 34px; height: 34px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;
         }
         .btn-plus { background: #27ae60; color: white; }
         .btn-minus { background: #e74c3c; color: white; }
+
+        /* NEU: PFPN-Zusatzoption als eigenständiger, unmissverständlicher Toggle-Chip */
+        .pfpn-toggle {
+            display: inline-flex; align-items: center; gap: 7px; margin-top: 2px; width: fit-content;
+            background: rgba(243, 156, 18, 0.15); border: 1px solid rgba(243, 156, 18, 0.5);
+            padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; color: #f6b93b; font-weight: bold;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .pfpn-toggle:hover { background: rgba(243, 156, 18, 0.25); }
+        .pfpn-toggle.aktiv { background: rgba(243, 156, 18, 0.35); border-color: #f39c12; color: #ffd580; }
+        /* Checkbox aus der globalen input{}-Regel (width:100%, min-height:44px) herauslösen */
+        .pfpn-toggle input[type="checkbox"] {
+            width: 16px; height: 16px; min-height: unset; padding: 0; margin: 0; cursor: pointer; accent-color: #f39c12; flex-shrink: 0;
+        }
         .btn-fuhrpark { background: #8e44ad; color: white; padding: 10px; font-size: 13px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-align: center; width: 100%; margin-top: 5px; }
 		
 		/* --- NEU: Styles für Taktik-Dashboard und Tabelle --- */
@@ -316,6 +338,31 @@
         }
         .trasse-a { color: #3498db; font-weight: bold; }
         .trasse-b { color: #e74c3c; font-weight: bold; }
+
+        /* NEU: Pendelvergleich-Box (Feature 1) - eigene Variante von .hud-alert in Blau */
+        .hud-alert-info {
+            background: rgba(52, 152, 219, 0.2); border: 1px solid #3498db; color: #aed6f1;
+        }
+        /* NEU: Faltbehälter-Badge für Stationen mit offener Förderstrecke (Feature 2) */
+        .faltbehaelter-badge {
+            display: inline-block; background: rgba(155, 89, 182, 0.25); border: 1px solid #9b59b6;
+            color: #d2b4de; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px;
+            margin-top: 3px; white-space: nowrap;
+        }
+        /* NEU: Leitungsart-Badge (Einfach/Doppel) je Abschnitt in der Koordinaten-Tabelle (Feature 3) */
+        .leitung-badge {
+            display: inline-block; font-size: 10px; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-left: 4px; white-space: nowrap;
+        }
+        .leitung-badge.einfach { background: rgba(52, 152, 219, 0.2); color: #5dade2; border: 1px solid #3498db; }
+        .leitung-badge.doppel { background: rgba(142, 68, 173, 0.2); color: #bb8fce; border: 1px solid #8e44ad; }
+        /* NEU: Faltbehälter-Eingabefeld im Taktik-Ressourcen-Pool (Feature 2) */
+        .faltbehaelter-eingabe {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px;
+            background: rgba(155, 89, 182, 0.12); border: 1px solid rgba(155, 89, 182, 0.4); padding: 8px 10px; border-radius: 6px;
+        }
+        .faltbehaelter-eingabe input[type="number"] {
+            width: 70px; min-height: unset; padding: 6px; text-align: center; font-size: 14px;
+        }
 	
 	</style>
 </head>
@@ -394,7 +441,13 @@
                     <input type="number" id="fp-pfpn" value="0" min="0" style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
                 </div>
             </div>
-            
+
+            <!-- NEU: Tankinhalt für den Pendelverkehr-Vergleich im Taktik-Modus (Feature 1) -->
+            <div class="eingabe-gruppe" style="width: 100%;">
+                <label>Wassertank (Liter, 0 = kein Tank / nicht für Pendelverkehr geeignet):</label>
+                <input type="number" id="fp-tank" value="0" min="0" step="100" style="background: #34495e; color: white; border: 1px solid #7f8c8d;">
+            </div>
+
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
                 <button onclick="document.getElementById('fuhrpark-modal').style.display='none'" style="background: #7f8c8d; color: white; border: none; padding: 10px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;">Abbrechen</button>
                 <button onclick="speichereEigenesFahrzeug()" style="background: #27ae60; color: white; border: none; padding: 10px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">Speichern</button>
@@ -485,6 +538,18 @@
                     <span style="color: #e74c3c;">1.000er Pumpen:</span> <span id="pool-1000" style="font-weight: bold;">0</span> | 
                     <span style="color: #2ecc71;">B-Schläuche:</span> <span id="pool-schlauch" style="font-weight: bold;">0</span> m
                 </div>
+
+                <!-- NEU: Faltbehälter-Eingabe (Feature 2) - ab P2 wird bei Verfügbarkeit eine offene Förderstrecke (0,1 bar) geplant -->
+                <div class="faltbehaelter-eingabe" title="Ab Station P2 wird pro verfügbarem Faltbehälter eine offene Förderstrecke (0,1 bar Eingangsdruck statt 1,5 bar) geplant, wodurch die Pumpenabstände größer werden.">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: default;">
+                        <span style="font-size: 16px;">⛲</span>
+                        <span>
+                            <strong>Faltbehälter verfügbar</strong><br>
+                            <span style="font-size: 10px; color: #bdc3c7;">Ab P2: offene Förderstrecke (0,1 bar)</span>
+                        </span>
+                    </label>
+                    <input type="number" id="taktik-faltbehaelter" value="0" min="0" max="20" oninput="if(this.value<0)this.value=0;">
+                </div>
             </div>
 
             <button class="button btn-calc" onclick="auswertenTaktisch()" style="width: 100%; max-width: none; margin-top: 5px; font-size: 16px;">🚀 Taktik-Optimierung Starten</button>
@@ -511,6 +576,10 @@
                 <div class="hud-alert" id="hud-engpass"></div>
                 <div class="hud-alert" id="hud-reserve" style="display: block; margin-top: 5px; background: rgba(243, 156, 18, 0.2); border-color: #f39c12; color: #f39c12;">
                     <!-- Hier kommt die Nachforderung rein -->
+                </div>
+                <!-- NEU: Pendelverkehr-Alternative mit den im Pool gewählten Fahrzeugen (Feature 1) -->
+                <div class="hud-alert hud-alert-info" id="hud-pendelvergleich" style="margin-top: 5px;">
+                    <!-- Wird per JS gefüllt -->
                 </div>
             </div>
             
@@ -765,15 +834,17 @@
         // ==========================================
 
         // 1. Die fest hinterlegten Normfahrzeuge
+        // NEU: "tank" = angenommener Löschwasser-Tankinhalt in Litern für den Pendelverkehr-Vergleich (Feature 1).
+        // Richtwerte nach gängiger Normbeladung; 0 = kein/kaum nennenswerter Tank (Schlauchwagen, TSF).
         const normFahrzeuge = [
-            { id: 'lf10', name: 'LF 10 / HLF 10', fpn: 1000, schlauch: 14, pfpn: 0, isNorm: true },
-            { id: 'lf20', name: 'LF 20 / HLF 20', fpn: 2000, schlauch: 14, pfpn: 0, isNorm: true },
-            { id: 'lf20kats', name: 'LF 20 KatS', fpn: 2000, schlauch: 30, pfpn: 0, isNorm: true },
-            { id: 'tlf2000', name: 'TLF 2000', fpn: 1000, schlauch: 4, pfpn: 0, isNorm: true },
-            { id: 'tlf3000', name: 'TLF 3000 / TLF 4000', fpn: 2000, schlauch: 6, pfpn: 0, isNorm: true },
-            { id: 'tsf', name: 'TSF / TSF-W / KLF', fpn: 1000, schlauch: 10, pfpn: 0, isNorm: true },
-            { id: 'sw2000', name: 'GW-L2 / SW 2000', fpn: 0, schlauch: 100, pfpn: 0, isNorm: true }, // 2000m = 100 B-Schläuche
-            { id: 'sw1000', name: 'SW 1000', fpn: 0, schlauch: 50, pfpn: 0, isNorm: true } // 1000m = 50 B-Schläuche
+            { id: 'lf10', name: 'LF 10 / HLF 10', fpn: 1000, schlauch: 14, pfpn: 0, tank: 1000, isNorm: true },
+            { id: 'lf20', name: 'LF 20 / HLF 20', fpn: 2000, schlauch: 14, pfpn: 0, tank: 2000, isNorm: true },
+            { id: 'lf20kats', name: 'LF 20 KatS', fpn: 2000, schlauch: 30, pfpn: 0, tank: 2000, isNorm: true },
+            { id: 'tlf2000', name: 'TLF 2000', fpn: 1000, schlauch: 4, pfpn: 0, tank: 2000, isNorm: true },
+            { id: 'tlf3000', name: 'TLF 3000 / TLF 4000', fpn: 2000, schlauch: 6, pfpn: 0, tank: 3500, isNorm: true },
+            { id: 'tsf', name: 'TSF / TSF-W / KLF', fpn: 1000, schlauch: 10, pfpn: 0, tank: 0, isNorm: true },
+            { id: 'sw2000', name: 'GW-L2 / SW 2000', fpn: 0, schlauch: 100, pfpn: 0, tank: 0, isNorm: true }, // 2000m = 100 B-Schläuche
+            { id: 'sw1000', name: 'SW 1000', fpn: 0, schlauch: 50, pfpn: 0, tank: 0, isNorm: true } // 1000m = 50 B-Schläuche
         ];
 
         let aktuellerFuhrpark = [];
@@ -795,6 +866,7 @@
                     fpn: fz.fpn,
                     schlauch: fz.schlauch,
                     pfpn: fz.pfpn,
+                    tank: fz.tank || 0, // NEU (Feature 1)
                     isNorm: false 
                 }));
 
@@ -821,13 +893,14 @@
                 
                 if (fz.fpn > 0) infoText += ` | FPN ${fz.fpn === 2000 ? '10-2000' : '10-1000'}`;
                 if (!fz.isNorm && fz.pfpn > 0) infoText += ` | PFPN: ${fz.pfpn}`;
+                if (fz.tank > 0) infoText += ` | 💧 Tank: ${fz.tank} l`; // NEU (Feature 1)
 
                 let extraHTML = '';
                 if (fz.isNorm) {
                     extraHTML = `
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px; color: #bdc3c7; cursor: pointer;">
-                            <input type="checkbox" onchange="toggleZusatzPfpn(${index}, this.checked)" ${fz.hasZusatzPfpn ? 'checked' : ''}>
-                            Zusätzliche PFPN verladen
+                        <label class="pfpn-toggle ${fz.hasZusatzPfpn ? 'aktiv' : ''}" title="Lädt dieses Fahrzeug zusätzlich eine tragbare Pumpe (PFPN) mit?">
+                            <input type="checkbox" onchange="toggleZusatzPfpn(${index}, this.checked); this.closest('.pfpn-toggle').classList.toggle('aktiv', this.checked);" ${fz.hasZusatzPfpn ? 'checked' : ''}>
+                            <span>⚡ Zusatz-PFPN je Fahrzeug mitführen</span>
                         </label>
                     `;
                 } else {
@@ -846,14 +919,17 @@
                         <span style="font-size: 11px; color: #bdc3c7;">${infoText}</span>
                         ${extraHTML}
                     </div>
-                    <div class="fahrzeug-steuerung">
-                        <button class="btn-minus" onclick="aendereFahrzeugAnzahl(${index}, -1)">-</button>
-                        <span style="font-weight: bold; width: 20px; text-align: center;">${fz.count}</span>
-                        <button class="btn-plus" onclick="aendereFahrzeugAnzahl(${index}, 1)">+</button>
+                    <div class="fahrzeug-anzahl-block">
+                        <span class="fahrzeug-anzahl-label">🚒 Anzahl Fahrzeuge</span>
+                        <div class="fahrzeug-steuerung">
+                            <button class="btn-minus" onclick="aendereFahrzeugAnzahl(${index}, -1)">-</button>
+                            <span style="font-weight: bold; width: 20px; text-align: center;">${fz.count}</span>
+                            <button class="btn-plus" onclick="aendereFahrzeugAnzahl(${index}, 1)">+</button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(zeile);
-			}
+			});
 
             berechneRessourcenPool(); 
         }
@@ -876,6 +952,7 @@
             const fpn = parseInt(document.getElementById('fp-fpn').value);
             const schlauch = parseInt(document.getElementById('fp-schlauch').value) || 0;
             const pfpn = parseInt(document.getElementById('fp-pfpn').value) || 0;
+            const tank = parseInt(document.getElementById('fp-tank').value) || 0; // NEU: Tankinhalt (Feature 1)
 
             if (!name) {
                 alert('Bitte einen Fahrzeugnamen eingeben.');
@@ -896,7 +973,8 @@
                     name: name,
                     fpn: fpn,
                     schlauch: schlauch,
-                    pfpn: pfpn
+                    pfpn: pfpn,
+                    tank: tank // NEU: erfordert Spalte "tank" (integer, default 0) in eigene_fahrzeuge
                 };
 
                 const { error } = await supabaseClient
@@ -909,6 +987,7 @@
                 document.getElementById('fp-fpn').value = '0';
                 document.getElementById('fp-schlauch').value = '0';
                 document.getElementById('fp-pfpn').value = '0';
+                document.getElementById('fp-tank').value = '0'; // NEU
                 document.getElementById('fuhrpark-modal').style.display = 'none';
 
                 await initFahrzeuge(); 
@@ -1056,13 +1135,28 @@
             let jetzt = new Date();
             document.getElementById('druckDatumUhrzeit').innerText = jetzt.toLocaleDateString('de-DE') + ", " + jetzt.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'}) + " Uhr";
 
-            let volumen = document.getElementById('volumenInput').value;
-            let leitungText = document.getElementById('leitungsartInput').value === "1" ? "Einfach" : "Doppel";
-            let hoehe = document.getElementById('hoehenInput').value;
-            let pEingang = document.getElementById('eingangsdruckInput').value;
-            let pAusgang = document.getElementById('ausgangsdruckInput').value;
-            
-            document.getElementById('druckParamText').innerText = `Volumenstrom: ${volumen} l/min | Leitung (B): ${leitungText} | Höhe: ${hoehe} | Ausgang: ${pAusgang} bar | Eingang: ${pEingang} bar`;
+            // NEU (Feature 4): Im Taktik-Modus die Parameter aus dem zuletzt berechneten Taktik-Ergebnis
+            // ziehen, da die klassischen Eingabefelder (volumenInput, leitungsartInput, ...) dort ausgeblendet
+            // und nicht maßgeblich sind.
+            if (aktuellerModus === 'taktisch' && letztesTaktikErgebnis) {
+                let erg = letztesTaktikErgebnis;
+                let leitungTextTaktik = erg.isDouble ? "Doppel" : "Einfach";
+                let totalPumpenTaktik = erg.req2000 + erg.req1000;
+                let hoeheTaktik = "-";
+                if (globaleHoehen.length > 1) {
+                    let diff = globaleHoehen[globaleHoehen.length - 1] - globaleHoehen[0];
+                    hoeheTaktik = (diff > 0 ? "+" : "") + Math.round(diff) + " m";
+                }
+                document.getElementById('druckParamText').innerText = `TAKTIK-MODUS | Volumenstrom: ${erg.flow} l/min | Leitung (B): ${leitungTextTaktik} | Höhe: ${hoeheTaktik} | Pumpen: ${totalPumpenTaktik} Stk. (${erg.req2000}x 2.000er / ${erg.req1000}x 1.000er) | Schläuche: ${erg.reqHoses} B`;
+            } else {
+                let volumen = document.getElementById('volumenInput').value;
+                let leitungText = document.getElementById('leitungsartInput').value === "1" ? "Einfach" : "Doppel";
+                let hoehe = document.getElementById('hoehenInput').value;
+                let pEingang = document.getElementById('eingangsdruckInput').value;
+                let pAusgang = document.getElementById('ausgangsdruckInput').value;
+                
+                document.getElementById('druckParamText').innerText = `Volumenstrom: ${volumen} l/min | Leitung (B): ${leitungText} | Höhe: ${hoehe} | Ausgang: ${pAusgang} bar | Eingang: ${pEingang} bar`;
+            }
 
             // 2. Den Body in den CSS-Druckmodus zwingen
             document.body.classList.add('pdf-mode');
@@ -1274,6 +1368,7 @@
         var knotenpunkteLayer = L.layerGroup().addTo(map); 
         var symboleLayer = L.layerGroup().addTo(map); 
         var pufferbeckenZustand = {};
+        var letztesTaktikErgebnis = null; // NEU (Feature 4): hält das zuletzt berechnete Taktik-Ergebnis für den Druck
 		
 		// Speichert individuelle Leitungsarten für Streckenabschnitte (0 = Standard, 1 = Einfach, 2 = Doppel)
         let abschnittsLeitungsart = {};
@@ -1520,7 +1615,9 @@
 
         function streckeLoeschen(allesLeeren = true) {
             punkteListe = []; markerListe = []; geloeschtePunkteListe = []; gesamtDistanz = 0;
+            globaleDichtePunkte = []; globaleHoehen = [];
             pufferbeckenZustand = {}; 
+            letztesTaktikErgebnis = null; // NEU (Feature 4)
 			abschnittsLeitungsart = {};
             schlauchleitung.setLatLngs([]); knotenpunkteLayer.clearLayers(); symboleLayer.clearLayers();
             if(fSchlauchleitung) map.removeLayer(fSchlauchleitung);
@@ -1810,6 +1907,11 @@
                 prevPIdx = ubergabeIndex; 
             }
 
+            // NEU (Feature 3): Läuft synchron zur Tabelle mit und summiert JEDEN Abschnitt mit seiner
+            // EIGENEN (ggf. per Feinjustage-Dropdown überschriebenen) Leitungsart - statt am Ende einmalig
+            // mit der globalen Voreinstellung über die Gesamtdistanz zu rechnen.
+            let tatsaechlicheTotaleBSchlaeuche = 0;
+
 			pumpenIndizes.forEach((pIdx, idx) => {
                 let pNum = idx + 1 + pumpenNummerOffset;
                 let bgColor = pufferbeckenZustand[pNum] ? 'background-color: #9b59b6;' : '';
@@ -1831,8 +1933,17 @@
                 let distZuVorher = berechneStreckenMeterZwischen(prevPIdx, pIdx, dichtePunkte);
                 let abgerundetDist = Math.round(distZuVorher);
                 
-                // KORREKTUR 1: globalLeitungsart statt leitungsart
-                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (trassenMultiplikator * globalLeitungsart); 
+                // NEU (Feature 3 - Fix Sync-Bug): abschnittsweise korrekte Leitungsart statt globalLeitungsart.
+                // abschnittsLeitungsart[pNum] steht für den Abschnitt, der AN Station P{pNum} ankommt
+                // (exakt dieselbe Semantik wie bereits beim Zielabschnitt weiter unten verwendet).
+                let segmentLeitung = abschnittsLeitungsart[pNum] !== undefined ? abschnittsLeitungsart[pNum] : globalLeitungsart;
+                let segmentMulti = 1;
+                if (volumen > 2000 || (hfsCount > 0 && volumen > 800)) {
+                    let reqLines = Math.ceil(volumen / maxFlowPerB);
+                    segmentMulti = Math.ceil(reqLines / segmentLeitung);
+                }
+                let benoetigteSchlaeuche = Math.ceil(distZuVorher / 20) * (segmentMulti * segmentLeitung);
+                tatsaechlicheTotaleBSchlaeuche += benoetigteSchlaeuche;
 
                 let trasseText = trassenMultiplikator > 1 ? `[${trassenMultiplikator}x] ` : "";
                 
@@ -1845,8 +1956,10 @@
                 
                 let bezeichnung = pufferbeckenZustand[pNum] ? `${trasseText}${baseName} P${pNum} (offen)` : `${trasseText}${baseName} P${pNum}`;
                 let textColor = pufferbeckenZustand[pNum] ? '#9b59b6' : '#e74c3c';
+                // NEU (Feature 3): Einfach/Doppel-Kennzeichnung des Abschnitts in der Tabelle sichtbar machen
+                let leitungBadgeKlassisch = segmentLeitung == 2 ? `<span class="leitung-badge doppel">Doppel</span>` : `<span class="leitung-badge einfach">Einfach</span>`;
                 
-                coordHtml += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${benoetigteSchlaeuche} B)</td></tr>`;
+                coordHtml += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}${leitungBadgeKlassisch}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDist} m (${benoetigteSchlaeuche} B)</td></tr>`;
                 prevPIdx = pIdx;
             });
 
@@ -1873,9 +1986,10 @@
                 }
 
                 let benoetigteSchlaeucheZiel = Math.ceil(distZuVorherZiel / 20) * (segmentMultiZiel * segmentLeitungZiel);
-                tatsaechlicheTotaleBSchlaeuche += benoetigteSchlaeucheZiel;
+                tatsaechlicheTotaleBSchlaeuche += benoetigteSchlaeucheZiel; // NEU (Feature 3)
+                let leitungBadgeZiel = segmentLeitungZiel == 2 ? `<span class="leitung-badge doppel">Doppel</span>` : `<span class="leitung-badge einfach">Einfach</span>`; // NEU (Feature 3)
 
-                coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
+                coordHtml += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Verteiler (Ziel)${leitungBadgeZiel}</td><td style="padding:4px;">${utmZiel.zone}</td><td style="padding:4px;">${utmZiel.ostwert}</td><td style="padding:4px;">${utmZiel.nordwert}</td><td style="padding:4px; font-weight:bold;">~${abgerundetDistZiel} m (${benoetigteSchlaeucheZiel} B)</td></tr></tbody></table>`;
             }
 
             if (maximalerRuhedruck > 12.0) {
@@ -1885,11 +1999,13 @@
 
             let totalePumpen = (anzahlPumpenStationen + pumpenNummerOffset) * trassenMultiplikator;
             
-            // KORREKTUR 3: globalLeitungsart statt leitungsart
-            let totaleBSchlaeuche = Math.ceil(distB / 20) * (trassenMultiplikator * globalLeitungsart);
+            // NEU (Feature 3): totaleBSchlaeuche wurde bisher pauschal über die Gesamtdistanz mit der
+            // GLOBALEN Leitungsart berechnet und ignorierte damit jede abschnittsweise Änderung per
+            // Feinjustage-Dropdown. tatsaechlicheTotaleBSchlaeuche wurde oben bereits korrekt Abschnitt für
+            // Abschnitt (mit jeweils eigener Leitungsart) aufsummiert und wird jetzt stattdessen verwendet.
             
             let reservePumpen = totalePumpen > 0 ? Math.ceil(totalePumpen / 4) : 0;
-            let reserveSchlaeuche = Math.ceil(totaleBSchlaeuche / 5);
+            let reserveSchlaeuche = Math.ceil(tatsaechlicheTotaleBSchlaeuche / 5);
 
             if (hfsCount > 0) {
                 document.getElementById('hfs-result-spalte').style.display = 'flex';
@@ -1901,17 +2017,17 @@
                 document.getElementById('hfs-result-spalte').style.display = 'none';
             }
 
-            document.getElementById('trassen-result-spalte').style.display = (totaleBSchlaeuche > 0) ? 'flex' : 'none';
+            document.getElementById('trassen-result-spalte').style.display = (tatsaechlicheTotaleBSchlaeuche > 0) ? 'flex' : 'none';
             
             document.getElementById('pumpenAnzeige').innerText = totalePumpen;
-            document.getElementById('schlauchAnzeige').innerText = totaleBSchlaeuche;
-            document.getElementById('laengeAnzeige').innerText = totaleBSchlaeuche * 20;
+            document.getElementById('schlauchAnzeige').innerText = tatsaechlicheTotaleBSchlaeuche;
+            document.getElementById('laengeAnzeige').innerText = tatsaechlicheTotaleBSchlaeuche * 20;
             document.getElementById('reservePumpenAnzeige').innerText = reservePumpen;
             document.getElementById('reserveSchlauchAnzeige').innerText = reserveSchlaeuche;
             document.getElementById('reserveLaengeAnzeige').innerText = reserveSchlaeuche * 20;
             document.getElementById('gesamtPumpenAnzeige').innerText = totalePumpen + reservePumpen;
-            document.getElementById('gesamtSchlauchAnzeige').innerText = totaleBSchlaeuche + reserveSchlaeuche;
-            document.getElementById('gesamtLaengeAnzeige').innerText = (totaleBSchlaeuche + reserveSchlaeuche) * 20;
+            document.getElementById('gesamtSchlauchAnzeige').innerText = tatsaechlicheTotaleBSchlaeuche + reserveSchlaeuche;
+            document.getElementById('gesamtLaengeAnzeige').innerText = (tatsaechlicheTotaleBSchlaeuche + reserveSchlaeuche) * 20;
             
             berechnePendelverkehr();
             
@@ -2080,7 +2196,6 @@
                 </div>
             `;
             container.appendChild(zeileZiel);
-            });
         }
 
        function berechnePendelverkehr() {
@@ -2150,6 +2265,41 @@
             }
         }
 		
+		// NEU (Feature 1): Pendelverkehr-Vergleich im Taktik-Modus.
+        // Nutzt exakt dieselben Parameter (pv_v, pv_qfuell, pv_qabgabe, Rüstzeit) wie die klassische
+        // Pendelverkehrs-Funktion oben, wendet sie aber auf die im Taktik-Ressourcenpool ausgewählten
+        // Fahrzeuge (aktuellerFuhrpark) an - nicht auf die separaten pv_*-Eingaben.
+        function berechneTaktikPendelvergleich() {
+            if (gesamtDistanz <= 0) return null;
+
+            let streckenKm = gesamtDistanz / 1000;
+            let v = parseFloat(document.getElementById('pv_v').value) || 30;
+            let qFuell = parseFloat(document.getElementById('pv_qfuell').value) || 800;
+            let qAbgabe = parseFloat(document.getElementById('pv_qabgabe').value) || 400;
+            let ruestZeit = 2.0; // identisch zur klassischen Funktion
+            let fahrzeitHinRuck = (streckenKm / v) * 60 * 2;
+
+            let gesamtErtrag = 0;
+            let detailsHtml = "";
+            let anzahlFahrzeugtypen = 0;
+
+            aktuellerFuhrpark.forEach(fz => {
+                if (fz.count > 0 && fz.tank > 0) {
+                    let tFuell = fz.tank / qFuell;
+                    let tAbgabe = fz.tank / qAbgabe;
+                    let umlaufzeit = ruestZeit + tFuell + fahrzeitHinRuck + tAbgabe;
+                    let leistungEinFahrzeug = fz.tank / umlaufzeit;
+                    let leistungTyp = leistungEinFahrzeug * fz.count;
+                    gesamtErtrag += leistungTyp;
+                    anzahlFahrzeugtypen++;
+                    detailsHtml += `• <b>${fz.count}x ${fz.name}</b> (${fz.tank} l): ~${Math.round(leistungTyp)} l/min<br>`;
+                }
+            });
+
+            if (anzahlFahrzeugtypen === 0) return null;
+            return { ertrag: gesamtErtrag, detailsHtml: detailsHtml };
+        }
+
 		// Liste für eigene Fahrzeuge im Pendelverkehr
         let eigenePendelFahrzeuge = [];
 
@@ -2562,13 +2712,19 @@
                 await ladeHoehenFuerDichtePunkte(globaleDichtePunkte);
             }
 
+            // NEU (Feature 2): Anzahl verfügbarer Faltbehälter auslesen.
+            let faltbehaelterVerfuegbar = parseInt(document.getElementById('taktik-faltbehaelter').value) || 0;
+            // Alte Becken-Markierungen aus einem vorherigen Durchlauf zurücksetzen, damit die Feinjustage-Haken
+            // ausschließlich den frisch berechneten Stationen entsprechen.
+            pufferbeckenZustand = {};
+
             const flowRates = [2000, 1800, 1600, 1400, 1200, 1000, 800, 600, 400];
             let bestResult = null;
             let firstFailReason = null;
 
             for (let flow of flowRates) {
                 // 1. VERSUCH: Ideallinie (Doppelleitung für > 800 l/min, um Pumpen zu sparen)
-                let resIdeal = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, false);
+                let resIdeal = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, false, faltbehaelterVerfuegbar);
                 if (resIdeal.success) {
                     bestResult = resIdeal;
                     break;
@@ -2580,7 +2736,7 @@
                 // Wenn die Doppelleitung NUR an fehlenden Schläuchen gescheitert ist, 
                 // zwingen wir das System in den "Hochdruck-Modus" auf einer Einfachleitung!
                 if (!resIdeal.success && resIdeal.reason === 'schläuche' && flow > 800) {
-                    let resSingle = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, true);
+                    let resSingle = simuliereTaktikStrecke(flow, avail2000, avail1000, availHoses, true, faltbehaelterVerfuegbar);
                     if (resSingle.success) {
                         bestResult = resSingle;
                         break;
@@ -2620,7 +2776,7 @@
             }
         }
 
-        function simuliereTaktikStrecke(targetFlow, avail2000, avail1000, availHoses, forceSingleLine = false) {
+        function simuliereTaktikStrecke(targetFlow, avail2000, avail1000, availHoses, forceSingleLine = false, faltbehaelterVerfuegbar = 0) {
             let isDouble = (targetFlow > 800) && !forceSingleLine; 
             let lines = isDouble ? 2 : 1;
             let flowPerLine = targetFlow / lines;
@@ -2636,12 +2792,13 @@
             let used2000 = 0;
             let used1000 = 0;
             let stations = []; 
+            let faltbehaelterRest = faltbehaelterVerfuegbar; // NEU (Feature 2)
 
             let p1 = weisePumpeZu(targetFlow, avail2000 - used2000, avail1000 - used1000, isDouble);
             if (!p1) return { success: false, reason: 'pumpen_start' };
             
             used2000 += p1.u2000; used1000 += p1.u1000;
-            stations.push({ pIdx: 0, conf: p1 });
+            stations.push({ pIdx: 0, conf: p1, offenePufferung: false }); // P1 speist direkt aus der Entnahme, nie über Faltbehälter
 
             let distanzSeitLetzterPumpe = 0;
 
@@ -2653,7 +2810,11 @@
                 currentDruck -= (dist/100 * reibung) + (hDiff/10);
 
                 let isLast = (i === globaleDichtePunkte.length - 1);
-                let kritischerDruck = isLast ? 5.0 : 1.5; 
+                // NEU (Feature 2): Ab P2 (jede Station, die HIER entsteht, ist mindestens P2, da P1 schon existiert)
+                // wird bei verfügbaren Faltbehältern eine offene Förderstrecke geplant: kritischer Druck sinkt
+                // von 1,5 bar auf 0,1 bar, wodurch die Pumpen weiter auseinandergezogen werden können.
+                let stationWirdOffenGeplant = !isLast && faltbehaelterRest > 0;
+                let kritischerDruck = isLast ? 5.0 : (stationWirdOffenGeplant ? 0.1 : 1.5); 
 
                 if (currentDruck <= kritischerDruck && !isLast) {
                     let conf = weisePumpeZu(targetFlow, avail2000 - used2000, avail1000 - used1000, isDouble);
@@ -2664,7 +2825,8 @@
                     stations[stations.length - 1].distanz = distanzSeitLetzterPumpe - dist;
                     stations[stations.length - 1].schlaeuche = Math.ceil((distanzSeitLetzterPumpe - dist) / 20) * lines;
                     
-                    stations.push({ pIdx: i-1, conf: conf });
+                    if (stationWirdOffenGeplant) faltbehaelterRest--; // Faltbehälter für diese Station verbraucht
+                    stations.push({ pIdx: i-1, conf: conf, offenePufferung: stationWirdOffenGeplant });
                     
                     currentDruck = 10.0 - (dist/100 * reibung) - (hDiff/10);
                     distanzSeitLetzterPumpe = dist;
@@ -2680,7 +2842,11 @@
         function weisePumpeZu(flow, free2000, free1000, isDouble) {
             if (flow > 1000) {
                 if (free2000 >= 1) return { text: "1x 2.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist Hochdruck-Einfachleitung", u2000: 1, u1000: 0, isSplit: false };
-                if (free1000 >= 2) return { text: "2x 1.000er Pumpe", desc: isDouble ? "Parallelbetrieb: Je Pumpe 1 Trasse" : "Parallelbetrieb: Speisen über Sammelstück in eine Trasse", u2000: 0, u1000: 2, isSplit: true }; 
+                // WICHTIG: 2x 1.000er Pumpen über Sammelstück in EINE Trasse sind bei einer Einfachleitung
+                // physikalisch nicht zulässig - die Parallelschaltung addiert die Fördermenge, nicht den Druck,
+                // und eine einzelne B-Leitung braucht für 2.000 l/min einen deutlich höheren Ausgangsdruck,
+                // als zwei FPN10-1000 liefern können. Nur bei einer Doppelleitung (je Pumpe eigene Trasse) zulässig.
+                if (isDouble && free1000 >= 2) return { text: "2x 1.000er Pumpe", desc: "Parallelbetrieb: Je Pumpe 1 Trasse", u2000: 0, u1000: 2, isSplit: true }; 
                 return null;
             } else {
                 if (free1000 >= 1) return { text: "1x 1.000er Pumpe", desc: isDouble ? "Speist beide Trassen über Verteiler" : "Speist einfache Leitung", u2000: 0, u1000: 1, isSplit: false };
@@ -2738,6 +2904,19 @@
                 reserveBox.style.display = 'none';
             }
 
+            // NEU (Feature 1): Pendelverkehr-Alternative mit den im Ressourcen-Pool gewählten Fahrzeugen anzeigen
+            let pendelBox = document.getElementById('hud-pendelvergleich');
+            let pendelVergleich = berechneTaktikPendelvergleich();
+            if (pendelVergleich) {
+                let deckt = pendelVergleich.ertrag >= result.flow;
+                pendelBox.innerHTML = `🚚 <b>Alternative Pendelverkehr:</b> Die im Pool gewählten Tankfahrzeuge leisten ca. <b>${Math.round(pendelVergleich.ertrag)} l/min</b> im Pendelverkehr ${deckt ? '(deckt die Förderstrecke ab ✅)' : '(reicht allein nicht an die Förderstrecke heran ⚠️)'}.<br><span style="font-size:11px; opacity:0.85;">${pendelVergleich.detailsHtml}</span>`;
+                pendelBox.style.display = 'block';
+            } else {
+                pendelBox.style.display = 'none';
+            }
+
+            letztesTaktikErgebnis = result; // NEU (Feature 4): für die Druckfunktion merken
+
             let tbody = document.getElementById('taktik-tabellen-body');
             tbody.innerHTML = '';
             
@@ -2745,6 +2924,10 @@
                 let pNum = idx + 1;
                 let isStart = (idx === 0);
                 let label = isStart ? `P1 (Start)` : `P${pNum} (Station)`;
+                
+                // NEU (Feature 2): Faltbehälter-Markierung + Sync mit der klassischen Feinjustage (Becken-Haken)
+                if (st.offenePufferung) pufferbeckenZustand[pNum] = true;
+                let faltbehaelterBadge = st.offenePufferung ? `<br><span class="faltbehaelter-badge">⛲ mit Faltbehälter (0,1 bar)</span>` : "";
                 
                 let trassenInfo = "";
                 if (result.isDouble) {
@@ -2760,7 +2943,7 @@
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><b>${label}</b></td>
+                        <td><b>${label}</b>${faltbehaelterBadge}</td>
                         <td><b>${st.conf.text}</b><br><span style="color:#bdc3c7; font-size:11px;">${st.conf.desc}</span></td>
                         <td><b>${st.schlaeuche} B gesamt</b>${trassenInfo}</td>
                     </tr>
@@ -2795,11 +2978,12 @@
 
            result.stations.forEach((st, idx) => {
                 let pNum = idx + 1;
-                let mapLabel = `P${pNum}<br><span style="font-size:9px;">${st.conf.isSplit ? '[2x 1.000]' : (st.conf.u2000 ? '[2.000er]' : '[1.000er]')}</span>`;
+                let mapLabel = `P${pNum}<br><span style="font-size:9px;">${st.conf.isSplit ? '[2x 1.000]' : (st.conf.u2000 ? '[2.000er]' : '[1.000er]')}</span>${st.offenePufferung ? '<br><span style="font-size:8px;">⛲ Becken</span>' : ''}`;
+                let iconBgColor = st.offenePufferung ? '#9b59b6' : '#e74c3c'; // NEU (Feature 2)
                 
                 let pIcon = L.divIcon({ 
                     className: '', 
-                    html: `<div class="icon-ts" style="background-color:#e74c3c; line-height:1.2; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-width:64px; padding:4px 6px; height:auto; border-radius:6px; box-shadow:0 0 10px rgba(0,0,0,0.5); white-space:nowrap;">${mapLabel}</div>`, 
+                    html: `<div class="icon-ts" style="background-color:${iconBgColor}; line-height:1.2; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-width:64px; padding:4px 6px; height:auto; border-radius:6px; box-shadow:0 0 10px rgba(0,0,0,0.5); white-space:nowrap;">${mapLabel}</div>`, 
                     iconSize: [64, 44], 
                     iconAnchor: [32, 22] 
                 });
@@ -2808,6 +2992,33 @@
 
             L.marker(globaleDichtePunkte[globaleDichtePunkte.length - 1], {icon: verteilerIcon, title: "Ziel"}).addTo(symboleLayer);
             map.fitBounds(bSchlauchleitung.getBounds(), { padding: [30, 30] });
+
+            // NEU (Feature 4): Koordinaten-Tabelle (UTM) auch im Taktik-Modus befüllen und einblenden,
+            // damit Tabelle und Druck-Button (die zuvor nur im klassischen Modus sichtbar waren) auch hier nutzbar sind.
+            let coordHtmlTaktik = `<table style="width: 100%; border-collapse: collapse; font-size: 13px;"><thead><tr style="border-bottom: 1px solid #7f8c8d; text-align: left;"><th style="padding:4px;">Standort</th><th style="padding:4px;">Zone</th><th style="padding:4px;">Ost</th><th style="padding:4px;">Nord</th><th style="padding:4px;">Strecke davor</th></tr></thead><tbody>`;
+            
+            result.stations.forEach((st, idx) => {
+                let pNum = idx + 1;
+                let utmP = getUTM(globaleDichtePunkte[st.pIdx].lat, globaleDichtePunkte[st.pIdx].lng);
+                // NEU (Feature 3-analog): Leitungsart dieses Abschnitts (Einfach/Doppel) klar ausweisen
+                let leitungBadge = result.isDouble
+                    ? `<span class="leitung-badge doppel">Doppel</span>`
+                    : `<span class="leitung-badge einfach">Einfach</span>`;
+                let faltbehaelterHinweis = st.offenePufferung ? ` <span class="faltbehaelter-badge">⛲ mit Faltbehälter</span>` : "";
+                let vorherigeDistanz = idx === 0 ? 0 : (result.stations[idx - 1].distanz || 0);
+                let vorherigeSchlaeuche = idx === 0 ? 0 : (result.stations[idx - 1].schlaeuche || 0);
+                let textColor = st.offenePufferung ? '#9b59b6' : '#e74c3c';
+                let bezeichnung = `P${pNum}${idx === 0 ? ' (Start)' : ' (Station)'}: ${st.conf.text}`;
+
+                coordHtmlTaktik += `<tr><td style="padding:4px; color:${textColor}; font-weight:bold;">${bezeichnung}${leitungBadge}${faltbehaelterHinweis}</td><td style="padding:4px;">${utmP.zone}</td><td style="padding:4px;">${utmP.ostwert}</td><td style="padding:4px;">${utmP.nordwert}</td><td style="padding:4px; font-weight:bold;">~${Math.round(vorherigeDistanz)} m (${vorherigeSchlaeuche} B)</td></tr>`;
+            });
+
+            let letzteStation = result.stations[result.stations.length - 1];
+            let utmZielTaktik = getUTM(globaleDichtePunkte[globaleDichtePunkte.length - 1].lat, globaleDichtePunkte[globaleDichtePunkte.length - 1].lng);
+            coordHtmlTaktik += `<tr><td style="padding:4px; color:#c0392b; font-weight:bold;">Zielpunkt / Übergabe</td><td style="padding:4px;">${utmZielTaktik.zone}</td><td style="padding:4px;">${utmZielTaktik.ostwert}</td><td style="padding:4px;">${utmZielTaktik.nordwert}</td><td style="padding:4px; font-weight:bold;">~${Math.round(letzteStation.distanz || 0)} m (${letzteStation.schlaeuche || 0} B)</td></tr></tbody></table>`;
+
+            document.getElementById('koordinaten-liste').innerHTML = coordHtmlTaktik;
+            document.getElementById('koordinaten-box').style.display = 'flex';
         }
 
         function zeigeTaktikFehler(failReason) {
@@ -2815,6 +3026,10 @@
             document.getElementById('hud-headline').innerHTML = `<div style="font-size: 24px; color: #e74c3c; font-weight: bold;">❌ STRECKE NICHT MACHBAR</div>`;
             document.getElementById('hud-main').style.borderLeftColor = "#c0392b";
             document.getElementById('taktik-tabellen-body').innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 20px;">Keine Taktik möglich. Siehe Fehlermeldung.</td></tr>`;
+            // NEU: Veraltete Koordinaten-/Pendelvergleich-Daten eines vorherigen Durchlaufs ausblenden
+            document.getElementById('koordinaten-box').style.display = 'none';
+            document.getElementById('hud-pendelvergleich').style.display = 'none';
+            letztesTaktikErgebnis = null;
             
             let engpassBox = document.getElementById('hud-engpass');
             engpassBox.style.display = 'block';
