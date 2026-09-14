@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+    ===================================================================
+    VARIANTE: Grundkarte basemap.de statt OpenStreetMap
+    Abgeleitet von index.html am 14.09.2026.
+
+    Einziger Unterschied zu index.html ist die Kachelebene (siehe den
+    Block "GRUNDKARTE: basemap.de" in der Map-Initialisierung). Alles
+    andere ist identisch — Berechnung, Taktikmodul, Supabase, Stripe,
+    Kündigung, Widerruf, Export.
+
+    Zum Übernehmen in den Produktivstand: diese Datei nach index.html
+    umbenennen. Zum Verwerfen: einfach löschen, index.html ist
+    unberührt geblieben.
+    ===================================================================
+-->
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -237,13 +252,52 @@
         body.pdf-mode table { font-size: 13px !important; width: 100% !important; }
         body.pdf-mode th, body.pdf-mode td { padding: 3px 5px !important; border-bottom: 1px solid #ddd; }
 
-        .leaflet-control-gps {
-            background: #fff; width: 44px; height: 44px; line-height: 44px;
-            text-align: center; font-size: 20px; font-weight: bold; cursor: pointer;
-            border-radius: 6px; box-shadow: 0 1px 5px rgba(0,0,0,0.6);
-            color: #2980b9; display: flex; align-items: center; justify-content: center;
+        /* --- Rechtlicher Footer ---
+           Alle Einträge liegen auf einer Ebene und brechen auf schmalen
+           Displays sauber um. Bewusst ohne "|"-Trenner, weil die beim
+           Umbruch am Zeilenanfang hängen bleiben. */
+        #legal-footer {
+            width: 100%; max-width: 1000px;
+            margin-top: 8px; padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
-        .leaflet-control-gps:hover { background: #f4f4f4; color: #3498db; }
+        .footer-links {
+            display: flex; flex-wrap: wrap;
+            justify-content: center; align-items: center;
+            gap: 2px 16px;
+        }
+        .footer-links a,
+        .footer-links .footer-link {
+            color: #bdc3c7; font-size: 12px; font-family: inherit;
+            background: none; border: none; cursor: pointer;
+            text-decoration: none; line-height: 1.3;
+            /* 7px vertikal ergibt rund 30 px Tippfläche — auf dem Tablet
+               auch mit Handschuhen noch bedienbar. */
+            padding: 7px 2px;
+        }
+        .footer-links a:hover,
+        .footer-links .footer-link:hover { color: #ecf0f1; text-decoration: underline; }
+        .footer-links a:focus-visible,
+        .footer-links .footer-link:focus-visible {
+            outline: 2px solid #3498db; outline-offset: 2px; border-radius: 2px;
+        }
+        /* § 312k Abs. 2 S. 3 BGB verlangt eine "gut lesbare" Schaltfläche.
+           Dauerhafte Unterstreichung und hellerer Ton machen sie eindeutig
+           als Steuerelement erkennbar, ohne sie größer zu machen. */
+        .footer-links .footer-link-recht { color: #ecf0f1; text-decoration: underline; }
+        .footer-links .footer-link-warn  { color: #e08e86; text-decoration: underline; }
+
+        /* Der Orten-Button soll exakt so groß sein wie die Zoom-Schaltflächen
+           darüber. Deshalb bekommt er KEINE eigenen Maße: Er nutzt die Klasse
+           .leaflet-bar und erbt damit Leaflets eigene Größe für solche
+           Schaltflächen (26 px, im Touch-Modus 30 px). Würde man hier feste
+           Pixel eintragen, passte es auf dem einen Gerät und auf dem anderen
+           nicht mehr. Hier wird nur noch das Aussehen gesetzt. */
+        .leaflet-control-gps a {
+            display: flex; align-items: center; justify-content: center;
+            color: #2980b9; font-size: 15px; cursor: pointer;
+        }
+        .leaflet-control-gps a:hover { background: #f4f4f4; color: #3498db; }
 
         .icon-wasser { background-color: #3498db; border: 2px solid white; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 13px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .icon-ts { background-color: #e74c3c; border: 2px solid white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 11px; box-shadow: 0 0 5px rgba(0,0,0,0.8); z-index: 1000 !important; }
@@ -456,12 +510,15 @@
     </div>
 
     <div id="map"></div>
-	
-	<!-- DIESEN BLOCK KOMPLETT LÖSCHEN -->
-    <!-- NEU: Schwebender Umschalt-Button für den Taktik-Modus -->
-    <button id="btn-taktik-toggle" onclick="toggleModus()" style="position: absolute; top: 12px; right: 60px; ...">
-        <span style="font-size: 16px;">🚀</span> Taktik: AUS
-    </button>
+
+    <!--
+      Hier stand bis zum 14.09.2026 ein zweiter Taktik-Button mit derselben
+      id="btn-taktik-toggle" (samt unfertigem style="... ..."). Er wurde
+      zusätzlich zum Leaflet-Steuerelement gerendert, sodass der Button
+      doppelt auf der Karte lag. Der Kommentar daneben forderte die Löschung
+      bereits — jetzt erledigt. Der einzig gültige Taktik-Button wird in
+      TaktikControl erzeugt.
+    -->
 
     <div id="info-bereich">
 
@@ -502,6 +559,11 @@
             </div>
             <button class="button btn-save" onclick="streckeLaden()">📂 Laden</button>
             <button class="button btn-clear" onclick="streckeAusSpeicherLoeschen()" title="Löschen">🗑️</button>
+            <!-- Der Export stand zuvor im Rechts-Footer. Dort war er fehl am
+                 Platz: Er ist kein Rechtsmittel, sondern eine Funktion und
+                 gehört zu den Strecken. (AGB § 5 Abs. 5 lit. a verlangt nur,
+                 dass ein Export existiert, nicht wo er steht.) -->
+            <button class="button" style="background-color: #2980b9;" onclick="oeffneExport()" title="Alle gespeicherten Strecken als JSON oder CSV herunterladen">⬇️ Export</button>
         </div>
 
         <!-- NEU: TAKTIK LEISTE -->
@@ -769,35 +831,29 @@
             <div id="koordinaten-liste"></div>
         </div>
 
-        <!-- RECHTLICHER FOOTER (Zwingend VOR dem schließenden div) -->
-		<div id="legal-footer" style="width: 100%; max-width: 1000px; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">
-            <a href="impressum.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Impressum</a> |
-            <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> |
-            <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB &amp; Widerrufsbelehrung</a>
+        <!-- RECHTLICHER FOOTER (Zwingend VOR dem schließenden div)
 
-            <button onclick="sendeFeedback()" style="background: none; color: #3498db; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin: 0 8px; font-family: inherit;">Feedback & Wünsche</button>
-			<button onclick="kontoLoeschen()" id="delete-account-btn" style="display: none; background: none; color: #c0392b; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin-left: 15px; font-family: inherit;">Konto löschen</button>
+             § 312k Abs. 3 BGB verlangt, dass die Kündigungsschaltfläche
+             "ständig verfügbar sowie unmittelbar und leicht zugänglich" ist,
+             und nach OLG Köln 6 U 62/24 ohne vorgeschalteten Login. Sie darf
+             deshalb NICHT an isPremium oder an den Login-Status gekoppelt
+             werden — auch nicht, um Platz zu sparen.
 
-            <!--
-              § 312k BGB (Kündigungsbutton) und § 356a BGB (elektronische
-              Widerrufsfunktion): Beide Schaltflächen müssen ständig verfügbar,
-              gut lesbar und ohne Login erreichbar sein. Deshalb stehen sie hier
-              fest im Footer und NICHT hinter dem Account-Menü.
-            -->
-            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;">
-                <button onclick="oeffneKuendigung()" id="kuendigungs-button"
-                        style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: bold;">
-                    Verträge hier kündigen
-                </button>
-                <button onclick="oeffneWiderruf()" id="widerrufs-button"
-                        style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: inherit;">
-                    Vertrag widerrufen
-                </button>
-                <button onclick="oeffneExport()" id="export-button"
-                        style="background: none; color: #3498db; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; font-family: inherit;">
-                    Strecken exportieren
-                </button>
-            </div>
+             Dasselbe gilt für den Widerruf: Unmittelbar nach dem Kauf, also
+             genau im kritischen Zeitfenster, ist isPremium oft noch false,
+             weil Make.com die Freischaltung asynchron setzt.
+        -->
+		<div id="legal-footer">
+            <nav class="footer-links">
+                <a href="impressum.html">Impressum</a>
+                <a href="datenschutz.html">Datenschutz</a>
+                <a href="agb.html">AGB &amp; Widerrufsbelehrung</a>
+                <button onclick="oeffneKuendigung()" id="kuendigungs-button" class="footer-link footer-link-recht">Verträge hier kündigen</button>
+                <button onclick="oeffneWiderruf()" id="widerrufs-button" class="footer-link footer-link-recht">Vertrag widerrufen</button>
+                <button onclick="sendeFeedback()" class="footer-link">Feedback &amp; Wünsche</button>
+                <!-- Startet ausgeblendet; der Auth-Handler blendet es nach dem Login ein. -->
+                <button onclick="kontoLoeschen()" id="delete-account-btn" class="footer-link footer-link-warn" style="display: none;">Konto löschen</button>
+            </nav>
         </div>
 
     </div> <!-- HIER ENDET DER BLAUE INFO-BEREICH -->
@@ -822,7 +878,7 @@
                 }
 
                 aktuellerModus = 'taktisch';
-                btn.innerHTML = '<span style="font-size: 16px;">📟</span> Taktik: EIN';
+                btn.innerHTML = 'Taktik: EIN';
                 btn.style.background = '#2980b9'; 
                 btn.style.color = 'white';
                 
@@ -834,7 +890,7 @@
             } else {
                 // Zurück zu Klassisch
                 aktuellerModus = 'klassisch';
-                btn.innerHTML = '<span style="font-size: 16px;">🚀</span> Taktik: AUS';
+                btn.innerHTML = 'Taktik: AUS';
                 btn.style.background = 'white';
                 btn.style.color = '#2c3e50';
                 
@@ -1236,16 +1292,49 @@
 
         // --- MAP INITIALISIERUNG & OVERPASS API ---
         var map = L.map('map', { preferCanvas: true }).setView([50.2925, 8.8142], 14);
-        // Kacheln: KEINE {s}-Subdomains mehr (a/b/c.tile.openstreetmap.org ist von
-        // der OSMF abgekündigt und öffnet mehr parallele Verbindungen, als die
-        // Tile Usage Policy erlaubt). Die Attribution muss sichtbar und verlinkt
-        // sein — das verlangt sowohl die Policy als auch die ODbL-Lizenz.
-        var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'
-        }).addTo(map);
+        // ------------------------------------------------------------------
+        //  GRUNDKARTE: basemap.de (Bundesamt für Kartographie und Geodäsie)
+        //
+        //  Amtliche Topografie aus dem Basis-Landschaftsmodell der Länder.
+        //  Geldleistungsfrei unter CC BY 4.0, kommerzielle Nutzung erlaubt,
+        //  kein API-Schlüssel, kein Kontingent, Hosting in Deutschland.
+        //
+        //  ACHTUNG Reihenfolge: Die WMTS-URL lautet {z}/{y}/{x} — y VOR x.
+        //  Wer das auf {z}/{x}/{y} ändert, bekommt Kacheln aus der falschen
+        //  Weltgegend, ohne dass ein Fehler auftaucht.
+        //
+        //  Graustufen statt Farbe: im Pfad "de_basemapde_web_raster_farbe"
+        //  durch "de_basemapde_web_raster_grau" ersetzen. Dann tritt die
+        //  Grundkarte zurück und die Schlauchleitung dominiert stärker.
+        //
+        //  maxZoom 19 ist das Maximum des Dienstes — ab Stufe 20 liefert er
+        //  HTTP 400 (geprüft am 14.09.2026).
+        //
+        //  GRENZE: Der Dienst deckt ausschließlich Deutschland ab. Jenseits
+        //  der Bundesgrenze bleibt die Karte leer.
+        //
+        //  Der Quellenvermerk ist Lizenzbedingung, keine Höflichkeit, und
+        //  muss beide Links enthalten. Die Jahreszahl ist das Jahr des
+        //  letzten Datenabrufs und gehört bei größeren Updates aktualisiert.
+        // ------------------------------------------------------------------
+        var basiskarteLayer = L.tileLayer(
+            'https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/' +
+            'de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png',
+            {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">GeoBasis-DE / BKG</a> 2026 ' +
+                             '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>'
+            }
+        ).addTo(map);
 
-        var ofmLayer = L.layerGroup();
+        // Die Hydranten und Saugstellen stammen weiterhin aus OpenStreetMap
+        // (über Overpass) und stehen unter der ODbL — die Namensnennung bleibt
+        // damit Pflicht, auch wenn die Grundkarte jetzt vom BKG kommt.
+        // Leaflet blendet diesen Vermerk automatisch zusammen mit dem Layer
+        // ein und wieder aus.
+        var ofmLayer = L.layerGroup([], {
+            attribution: 'Hydranten: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'
+        });
         var ladeTimeout = null;
         var overpassMirrors = [
             "https://overpass-api.de/api/interpreter",
@@ -1280,99 +1369,214 @@
             }
         }
 
+        // ------------------------------------------------------------------
+        //  ENTNAHMESTELLEN (Overpass API)
+        //
+        //  Overpass ist wie die OSM-Kachelserver freiwillig betriebene
+        //  Infrastruktur mit eigener Nutzungsrichtlinie. Vorher löste jede
+        //  noch so kleine Kartenbewegung nach 500 ms eine vollständige neue
+        //  Abfrage aus — auch beim Zurückschwenken auf bereits geladenes
+        //  Gebiet. Drei Maßnahmen senken die Last um ein Vielfaches:
+        //
+        //   1. Geladen wird ein um 40 % vergrößerter Bereich, nicht nur der
+        //      sichtbare Ausschnitt. Kleine Schwenks bleiben dadurch
+        //      innerhalb der bereits geladenen Fläche.
+        //   2. Liegt der neue Ausschnitt vollständig im geladenen Bereich,
+        //      passiert gar nichts — keine Abfrage, kein Neuzeichnen.
+        //   3. Frühere Bereiche bleiben zwischengespeichert. Zurückschwenken
+        //      zeichnet aus dem Speicher, ohne das Netz anzufassen.
+        //
+        //  Dazu kommt eine längere Entprellung und der Abbruch überholter
+        //  Abfragen, damit keine veraltete Antwort eine neuere überschreibt.
+        // ------------------------------------------------------------------
+        var HYDRANTEN_PUFFER      = 0.4;               // 40 % Rand um den Ausschnitt
+        var HYDRANTEN_ENTPRELLUNG = 1200;              // ms (vorher 500)
+        var HYDRANTEN_CACHE_DAUER = 15 * 60 * 1000;    // 15 Minuten
+        var HYDRANTEN_CACHE_MAX   = 15;                // Anzahl gemerkter Bereiche
+
+        var hydrantenCache   = [];    // { bounds, elemente, zeit }
+        var geladeneRegion   = null;  // Bereich, der gerade gezeichnet ist
+        var hydrantenAbbruch = null;  // AbortController der laufenden Abfrage
+
         map.on('overlayadd', function(e) { if (e.layer === ofmLayer) ladeHydranten(); });
         map.on('moveend', function() {
-            if (map.hasLayer(ofmLayer)) { 
+            if (map.hasLayer(ofmLayer)) {
                 clearTimeout(ladeTimeout);
-                ladeTimeout = setTimeout(ladeHydranten, 500);
+                ladeTimeout = setTimeout(ladeHydranten, HYDRANTEN_ENTPRELLUNG);
+            }
+        });
+        // Die App ruft an vielen Stellen invalidateSize() auf (nach dem
+        // Schließen von Modals, beim Moduswechsel, im Druckmodus). Erst
+        // dadurch bekommt die Karte wieder eine echte Größe. Ohne diesen
+        // Haken bliebe der Hydranten-Layer nach einem solchen Moment stumm
+        // stehen, bis der Nutzer selbst die Karte bewegt.
+        map.on('resize', function() {
+            if (map.hasLayer(ofmLayer)) {
+                clearTimeout(ladeTimeout);
+                ladeTimeout = setTimeout(ladeHydranten, HYDRANTEN_ENTPRELLUNG);
             }
         });
 
-		async function ladeHydranten() {
-            let statusText = document.getElementById('api-status');
+        function hydrantenCacheSuchen(sichtbar) {
+            var jetzt = Date.now();
+            hydrantenCache = hydrantenCache.filter(function(e) {
+                return jetzt - e.zeit < HYDRANTEN_CACHE_DAUER;
+            });
+            // Von hinten suchen: der neueste passende Bereich gewinnt.
+            for (var i = hydrantenCache.length - 1; i >= 0; i--) {
+                if (hydrantenCache[i].bounds.contains(sichtbar)) return hydrantenCache[i];
+            }
+            return null;
+        }
+
+        function hydrantenCacheAblegen(bounds, elemente) {
+            hydrantenCache.push({ bounds: bounds, elemente: elemente, zeit: Date.now() });
+            if (hydrantenCache.length > HYDRANTEN_CACHE_MAX) hydrantenCache.shift();
+        }
+
+        async function ladeHydranten() {
+            var statusText = document.getElementById('api-status');
+
             if (map.getZoom() < 14) {
                 ofmLayer.clearLayers();
+                geladeneRegion = null;
                 statusText.innerText = "⚠️ Bitte zoomen (ab Stufe 14)";
                 return;
             }
-            statusText.innerText = "⏳ Lade Hydranten...";
-            var bounds = map.getBounds();
-            var bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+
+            // Ist die Karte gerade nicht vermessen (Größe 0 — etwa im
+            // Druck-/PDF-Modus, hinter einem Modal oder vor dem ersten
+            // invalidateSize()), liefert getBounds() einen entarteten Bereich
+            // mit Süd == Nord. Dann würde eine nutzlose Abfrage über eine
+            // Fläche von 0 km² rausgehen und den Zwischenspeicher mit einem
+            // Eintrag füllen, der nie wieder passt. Also abwarten.
+            var groesse = map.getSize();
+            if (groesse.x < 50 || groesse.y < 50) return;
+
+            var sichtbar = map.getBounds();
+
+            // (2) Der gezeichnete Bereich deckt den Ausschnitt schon ab.
+            //     Das ist der häufigste Fall beim Verfolgen einer Strecke.
+            if (geladeneRegion && geladeneRegion.contains(sichtbar)) return;
+
+            // (3) Aus dem Zwischenspeicher bedienen, ohne Netzzugriff.
+            var treffer = hydrantenCacheSuchen(sichtbar);
+            if (treffer) {
+                geladeneRegion = treffer.bounds;
+                zeichneEntnahmestellen(treffer.elemente);
+                return;
+            }
+
+            // (1) Vergrößerten Bereich anfordern, damit kleine Schwenks
+            //     nicht sofort wieder nachladen müssen.
+            var ladeBereich = sichtbar.pad(HYDRANTEN_PUFFER);
+            var bbox = `${ladeBereich.getSouth()},${ladeBereich.getWest()},${ladeBereich.getNorth()},${ladeBereich.getEast()}`;
             var query = `[out:json][timeout:15];(node["emergency"="fire_hydrant"](${bbox});node["emergency"="suction_point"](${bbox});node["emergency"="water_tank"](${bbox}););out;`;
+
+            // Eine noch laufende, jetzt überholte Abfrage abbrechen.
+            if (hydrantenAbbruch) hydrantenAbbruch.abort();
+            var abbruch = new AbortController();
+            hydrantenAbbruch = abbruch;
+
+            statusText.innerText = "⏳ Lade Hydranten...";
 
             for (let i = 0; i < overpassMirrors.length; i++) {
                 try {
-                    let response = await fetch(overpassMirrors[i] + "?data=" + encodeURIComponent(query));
-                    if (!response.ok) throw new Error();
+                    let response = await fetch(
+                        overpassMirrors[i] + "?data=" + encodeURIComponent(query),
+                        { signal: abbruch.signal }
+                    );
+                    if (!response.ok) throw new Error("HTTP " + response.status);
                     let data = await response.json();
-                    ofmLayer.clearLayers();
-                    if (!data.elements || data.elements.length === 0) {
-                        statusText.innerText = "✅ Keine Entnahmestellen";
-                        return;
-                    }
-                    
-                    data.elements.forEach(function(node) {
-                        var tags = node.tags || {};
-                        var isSuction = tags['emergency'] === 'suction_point';
-                        var isTank = tags['emergency'] === 'water_tank';
-                        var farbe = isSuction || isTank ? "#3498db" : "#e74c3c";
-                        
-                        var hIcon = L.divIcon({
-                            className: '',
-                            html: `<div style="background-color: ${farbe}; border: 2px solid white; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.8);"></div>`,
-                            iconSize: [16, 16], iconAnchor: [8, 8]
-                        });
 
-                        // 1. Grundbezeichnung ermitteln
-                        var popupTitel = "Hydrant";
-                        var popupDetails = "";
+                    var elemente = data.elements || [];
+                    hydrantenCacheAblegen(ladeBereich, elemente);
+                    geladeneRegion = ladeBereich;
+                    zeichneEntnahmestellen(elemente);
 
-                        if (isSuction) {
-                            popupTitel = "Saugstelle";
-                        } else if (isTank) {
-                            popupTitel = "Löschwasserbehälter";
-                            // Falls Volumen eingetragen ist
-                            if (tags['water_tank:volume']) {
-                                popupDetails += `Volumen: ${tags['water_tank:volume']} m³<br>`;
-                            }
-                        } else {
-                            // Hydranten-Typ ermitteln
-                            let typ = tags['fire_hydrant:type'];
-                            let durchmesser = tags['fire_hydrant:diameter'];
-                            
-                            if (typ === 'underground') popupTitel = "Unterflurhydrant";
-                            else if (typ === 'pillar') popupTitel = "Überflurhydrant";
-                            else if (typ === 'wall') popupTitel = "Wandhydrant";
-
-                            // Nennweite an den Titel anhängen (z.B. (DN 80))
-                            if (durchmesser) {
-                                popupTitel += ` (DN ${durchmesser})`;
-                            }
-
-                            // Zusätzliche Infos (Nummer/Referenz, Druck) falls vorhanden
-                            if (tags['ref']) popupDetails += `Hydranten-Nr: ${tags['ref']}<br>`;
-                            if (tags['fire_hydrant:pressure']) popupDetails += `Druck: ${tags['fire_hydrant:pressure']} bar<br>`;
-                        }
-
-                        // 2. HTML für das Popup zusammenbauen
-                        let popupInhalt = `<b>${popupTitel}</b>`;
-                        if (popupDetails !== "") {
-                            popupInhalt += `<div style="margin-top:4px; font-size:11px; color:#7f8c8d; line-height:1.4;">${popupDetails}</div>`;
-                        }
-
-                        L.marker([node.lat, node.lon], {icon: hIcon})
-                         .bindPopup(popupInhalt)
-                         .addTo(ofmLayer);
-                    });
-                    
-                    statusText.innerText = `✅ ${data.elements.length} Entnahmestellen geladen`;
-                    return; 
-                } catch (err) {}
+                    if (hydrantenAbbruch === abbruch) hydrantenAbbruch = null;
+                    return;
+                } catch (err) {
+                    // Abbruch heißt: eine neuere Abfrage hat übernommen. Dann
+                    // darf hier weder ein Spiegel nachgeladen noch ein Fehler
+                    // angezeigt werden — sonst überschreibt der alte Aufruf
+                    // das Ergebnis des neuen.
+                    if (err.name === 'AbortError') return;
+                }
             }
+
+            if (hydrantenAbbruch === abbruch) hydrantenAbbruch = null;
             statusText.innerText = "❌ Fehler beim Laden";
         }
 
-        var baseMaps = { "Standard Karte": osmLayer };
+        // Zeichnet die Marker neu — aus frischen Daten oder aus dem Cache.
+        function zeichneEntnahmestellen(elemente) {
+            var statusText = document.getElementById('api-status');
+            ofmLayer.clearLayers();
+
+            if (!elemente || elemente.length === 0) {
+                statusText.innerText = "✅ Keine Entnahmestellen";
+                return;
+            }
+
+            elemente.forEach(function(node) {
+                var tags = node.tags || {};
+                var isSuction = tags['emergency'] === 'suction_point';
+                var isTank = tags['emergency'] === 'water_tank';
+                var farbe = isSuction || isTank ? "#3498db" : "#e74c3c";
+
+                var hIcon = L.divIcon({
+                    className: '',
+                    html: `<div style="background-color: ${farbe}; border: 2px solid white; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.8);"></div>`,
+                    iconSize: [16, 16], iconAnchor: [8, 8]
+                });
+
+                // 1. Grundbezeichnung ermitteln
+                var popupTitel = "Hydrant";
+                var popupDetails = "";
+
+                if (isSuction) {
+                    popupTitel = "Saugstelle";
+                } else if (isTank) {
+                    popupTitel = "Löschwasserbehälter";
+                    // Falls Volumen eingetragen ist
+                    if (tags['water_tank:volume']) {
+                        popupDetails += `Volumen: ${tags['water_tank:volume']} m³<br>`;
+                    }
+                } else {
+                    // Hydranten-Typ ermitteln
+                    let typ = tags['fire_hydrant:type'];
+                    let durchmesser = tags['fire_hydrant:diameter'];
+
+                    if (typ === 'underground') popupTitel = "Unterflurhydrant";
+                    else if (typ === 'pillar') popupTitel = "Überflurhydrant";
+                    else if (typ === 'wall') popupTitel = "Wandhydrant";
+
+                    // Nennweite an den Titel anhängen (z.B. (DN 80))
+                    if (durchmesser) {
+                        popupTitel += ` (DN ${durchmesser})`;
+                    }
+
+                    // Zusätzliche Infos (Nummer/Referenz, Druck) falls vorhanden
+                    if (tags['ref']) popupDetails += `Hydranten-Nr: ${tags['ref']}<br>`;
+                    if (tags['fire_hydrant:pressure']) popupDetails += `Druck: ${tags['fire_hydrant:pressure']} bar<br>`;
+                }
+
+                // 2. HTML für das Popup zusammenbauen
+                let popupInhalt = `<b>${popupTitel}</b>`;
+                if (popupDetails !== "") {
+                    popupInhalt += `<div style="margin-top:4px; font-size:11px; color:#7f8c8d; line-height:1.4;">${popupDetails}</div>`;
+                }
+
+                L.marker([node.lat, node.lon], {icon: hIcon})
+                 .bindPopup(popupInhalt)
+                 .addTo(ofmLayer);
+            });
+
+            statusText.innerText = `✅ ${elemente.length} Entnahmestellen geladen`;
+        }
+
+        var baseMaps = { "Amtliche Karte (basemap.de)": basiskarteLayer };
         var overlayMaps = { "🚒 Hydranten anzeigen": ofmLayer };
         L.control.layers(baseMaps, overlayMaps).addTo(map);
         // --- ENDE MAP INITIALISIERUNG ---
@@ -1383,7 +1587,7 @@
             onAdd: function (map) {
                 var btn = L.DomUtil.create('button', 'taktik-map-btn');
                 btn.id = 'btn-taktik-toggle';
-                btn.innerHTML = '<span style="font-size: 16px;">🚀</span> Taktik: AUS';
+                btn.innerHTML = 'Taktik: AUS';
                 
                 // Extrem wichtig: Verhindert, dass beim Klicken ein Punkt auf die Karte gemalt wird!
                 L.DomEvent.disableClickPropagation(btn);
@@ -1421,13 +1625,24 @@
         var GpsButton = L.Control.extend({
             options: { position: 'topleft' },
             onAdd: function (map) {
-                var container = L.DomUtil.create('div', 'leaflet-control-gps');
-                container.innerHTML = '🎯';
-                container.title = 'Meinen Standort ermitteln';
-                container.onclick = function(e) {
-                    e.stopPropagation();
+                // Aufbau bewusst identisch zum Zoom-Steuerelement: ein
+                // .leaflet-bar mit einem <a> darin. Dadurch stimmen Größe,
+                // Rahmen, Eckenradius und Schatten automatisch mit den
+                // Zoom-Schaltflächen überein — auch im Touch-Modus, wo
+                // Leaflet von 26 auf 30 px wechselt.
+                var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control-gps');
+                var knopf = L.DomUtil.create('a', '', container);
+                knopf.href = '#';
+                knopf.title = 'Meinen Standort ermitteln';
+                knopf.setAttribute('role', 'button');
+                knopf.setAttribute('aria-label', 'Meinen Standort ermitteln');
+                knopf.innerHTML = '🎯';
+
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.on(knopf, 'click', function(e) {
+                    L.DomEvent.stop(e);   // verhindert das Sprung-Ziel "#" und einen Kartenklick
                     map.locate({setView: true, maxZoom: 16});
-                };
+                });
                 return container;
             }
         });
@@ -3549,8 +3764,7 @@
             beendigung_zum:      zeitpunkt,
             beendigung_datum:    (zeitpunkt === 'datum') ? datum : null,
             bestaetigung_email:  bestMail,
-            erklaerungs_text:    erklaerung,
-            user_agent:          navigator.userAgent
+            erklaerungs_text:    erklaerung
         };
 
         let fehler = null;
@@ -3651,8 +3865,7 @@
             bestellt_am:         bestelldat || null,
             begruendung:         begruendung || null,
             erklaerungs_text:    erklaerung,
-            bestaetigung_email:  email,
-            user_agent:          navigator.userAgent
+            bestaetigung_email:  email
         };
 
         let fehler = null;
@@ -3730,8 +3943,7 @@
                 vorzeitiger_leistungsbeginn_verlangt: lbOk,
                 kenntnis_erloeschen_bestaetigt:       lbOk,
                 einwilligungs_text:                   wortlaut,
-                agb_version:                          AGB_VERSION,
-                user_agent:                           navigator.userAgent
+                agb_version:                          AGB_VERSION
             }]);
 
             btn.disabled = false;
