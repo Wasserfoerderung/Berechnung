@@ -771,12 +771,33 @@
 
         <!-- RECHTLICHER FOOTER (Zwingend VOR dem schließenden div) -->
 		<div id="legal-footer" style="width: 100%; max-width: 1000px; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">
-            <a href="impressum.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Impressum</a> | 
-            <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> | 
-            <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB</a>
-            
+            <a href="impressum.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Impressum</a> |
+            <a href="datenschutz.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">Datenschutz</a> |
+            <a href="agb.html" style="color: #bdc3c7; text-decoration: none; margin: 0 8px;">AGB &amp; Widerrufsbelehrung</a>
+
             <button onclick="sendeFeedback()" style="background: none; color: #3498db; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin: 0 8px; font-family: inherit;">Feedback & Wünsche</button>
 			<button onclick="kontoLoeschen()" id="delete-account-btn" style="display: none; background: none; color: #c0392b; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; margin-left: 15px; font-family: inherit;">Konto löschen</button>
+
+            <!--
+              § 312k BGB (Kündigungsbutton) und § 356a BGB (elektronische
+              Widerrufsfunktion): Beide Schaltflächen müssen ständig verfügbar,
+              gut lesbar und ohne Login erreichbar sein. Deshalb stehen sie hier
+              fest im Footer und NICHT hinter dem Account-Menü.
+            -->
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;">
+                <button onclick="oeffneKuendigung()" id="kuendigungs-button"
+                        style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: bold;">
+                    Verträge hier kündigen
+                </button>
+                <button onclick="oeffneWiderruf()" id="widerrufs-button"
+                        style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: inherit;">
+                    Vertrag widerrufen
+                </button>
+                <button onclick="oeffneExport()" id="export-button"
+                        style="background: none; color: #3498db; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; font-family: inherit;">
+                    Strecken exportieren
+                </button>
+            </div>
         </div>
 
     </div> <!-- HIER ENDET DER BLAUE INFO-BEREICH -->
@@ -1215,7 +1236,14 @@
 
         // --- MAP INITIALISIERUNG & OVERPASS API ---
         var map = L.map('map', { preferCanvas: true }).setView([50.2925, 8.8142], 14);
-        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+        // Kacheln: KEINE {s}-Subdomains mehr (a/b/c.tile.openstreetmap.org ist von
+        // der OSMF abgekündigt und öffnet mehr parallele Verbindungen, als die
+        // Tile Usage Policy erlaubt). Die Attribution muss sichtbar und verlinkt
+        // sein — das verlangt sowohl die Policy als auch die ODbL-Lizenz.
+        var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'
+        }).addTo(map);
 
         var ofmLayer = L.layerGroup();
         var ladeTimeout = null;
@@ -1239,6 +1267,18 @@
         // Globale Variablen für den Nutzerstatus
         let currentUser = null;
         let isPremium = false;
+
+        // Führt fn erst aus, wenn das gesamte Dokument geparst ist. Nötig,
+        // weil die Rechts- und Premium-Funktionen in einem Script-Block am
+        // Seitenende stehen, Supabase seine Auth-Events aber schon vorher
+        // auslösen kann.
+        function wennDokumentBereit(fn) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', fn, { once: true });
+            } else {
+                fn();
+            }
+        }
 
         map.on('overlayadd', function(e) { if (e.layer === ofmLayer) ladeHydranten(); });
         map.on('moveend', function() {
@@ -2501,27 +2541,25 @@
                     document.getElementById('logout-btn').style.display = 'inline-block';
                     document.getElementById('manage-abo-btn').style.display = 'inline-block'; // <-- NEU HINZUFÜGEN
 					document.getElementById('delete-account-btn').style.display = 'inline';
-                    const { data, error } = await supabaseClient
-                        .from('profiles')
-                        .select('is_premium')
-                        .eq('id', currentUser.id)
-                        .single();
-                        
-					if (data) {
-                        isPremium = data.is_premium;
-                        if (isPremium) {
-                            document.getElementById('user-email-display').innerText = currentUser.email + " ⭐️ PRO";
-                            document.getElementById('manage-abo-btn').innerText = "⚙️ Abo verwalten"; // <- NEU
-                        } else {
-                            document.getElementById('user-email-display').innerText = currentUser.email;
-                            document.getElementById('manage-abo-btn').innerText = "⭐️ PRO freischalten"; // <- NEU
-                        }
-                    }
-                    wendePremiumSperrenAn();
+
+                    // Premium-Status lesen (nie schreiben — das macht Make.com)
+                    // und auf spätere Änderungen durch Make.com horchen.
+                    // Über wennDokumentBereit(), weil Supabase INITIAL_SESSION
+                    // feuern kann, bevor der Script-Block am Seitenende mit
+                    // ladePremiumStatus() geparst wurde.
+                    wennDokumentBereit(async () => {
+                        await ladePremiumStatus();
+                        starteProfilRealtime();
+                    });
+
                     aktualisiereSpeicherDropdown();
                 } else {
                     currentUser = null;
                     isPremium = false;
+                    wennDokumentBereit(() => {
+                        stoppeProfilRealtime();
+                        stoppeCheckoutBeobachtung();
+                    });
 					document.getElementById('user-email-display').innerText = "Nicht eingeloggt"; // Nur zur Sicherheit
                     document.getElementById('manage-abo-btn').style.display = 'none'; // <-- NEU HINZUFÜGEN
 					document.getElementById('delete-account-btn').style.display = 'none';
@@ -2586,25 +2624,26 @@
                 return;
             }
 
+            // § 356 Abs. 4 BGB: Erst die Einwilligung einholen, dann die
+            // Tarifauswahl zeigen. Die Preistabelle wird deshalb NICHT mehr
+            // hier gerendert — das übernimmt rendereStripeTabelle() nach
+            // checkoutEinwilligungBestaetigen().
+            document.getElementById('consent-agb').checked = false;
+            document.getElementById('consent-leistungsbeginn').checked = false;
+            document.getElementById('consent-fehler').style.display = 'none';
+            document.getElementById('checkout-consent-gate').style.display = 'block';
+            document.getElementById('stripe-table-container').innerHTML = "";
+            stoppeCheckoutBeobachtung();
+
             document.getElementById('stripe-modal').style.display = 'flex';
-
-            const container = document.getElementById('stripe-table-container');
-            container.innerHTML = `
-                <stripe-pricing-table 
-                  id="stripe-pricing-table-element"
-                  pricing-table-id="prctbl_1TycJBFstrnh7UIGwvjQlUAO"
-                  publishable-key="pk_test_51TybU2Fstrnh7UIGSdn61o8jaZS22WN0PlWHGkiiYWalArvL48CdOAo0jaR3JHDcv8KvvwTwa3WFnmKUHB69ddzK00WQVIDjIB"
-                  client-reference-id="${currentUser.id}"
-                  customer-email="${currentUser.email}">
-                </stripe-pricing-table>
-            `;
-
             setTimeout(() => { map.invalidateSize(); }, 100);
         }
 
         function closeStripeModal() {
             document.getElementById('stripe-modal').style.display = 'none';
             document.getElementById('stripe-table-container').innerHTML = "";
+            document.getElementById('checkout-consent-gate').style.display = 'none';
+            stoppeCheckoutBeobachtung();
             setTimeout(() => { map.invalidateSize(); }, 100);
         };
 
@@ -3053,14 +3092,945 @@
         
         <h2 style="margin-top: 0; color: #2c3e50; text-align: center;">Wähle deine „Abschnitt Wasser Pro“ Lizenz</h2>
         <p style="text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Schalte alle Einsatz-Tools, HFS-Systeme, Pendelverkehrs-Rechner & den unbegrenzten Cloud-Speicher frei.</p>
-        
+
+        <!--
+          § 356 Abs. 4 BGB / § 357 Abs. 8 BGB:
+          Die ausdrückliche Zustimmung zum vorzeitigen Leistungsbeginn und die
+          Kenntnisbestätigung müssen als eigener, aktiver Schritt IM Bestellprozess
+          eingeholt werden — vor der Weiterleitung zu Stripe. Die Stripe-Preistabelle
+          ist ein fremdes iframe, dort lässt sich nichts einbauen; deshalb liegt
+          dieser Schritt davor und schaltet die Tabelle erst frei.
+        -->
+        <div id="checkout-consent-gate" style="display: none;">
+            <div style="background: #f8f9fa; border: 1px solid #dfe4e6; border-radius: 8px; padding: 16px; font-size: 13px; color: #2c3e50; line-height: 1.5;">
+
+                <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer; margin-bottom: 14px;">
+                    <input type="checkbox" id="consent-agb" style="width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;">
+                    <span id="consent-agb-text">Ich habe die <a href="agb.html" target="_blank" style="color: #2980b9;">AGB</a>, die <a href="agb.html#widerruf" target="_blank" style="color: #2980b9;">Widerrufsbelehrung</a> und die <a href="datenschutz.html" target="_blank" style="color: #2980b9;">Datenschutzerklärung</a> gelesen und akzeptiere sie.</span>
+                </label>
+
+                <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer;">
+                    <input type="checkbox" id="consent-leistungsbeginn" style="width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;">
+                    <span id="consent-leistungsbeginn-text">Ich verlange ausdrücklich, dass Sie vor Ablauf der Widerrufsfrist mit der Ausführung der Leistung beginnen. Mir ist bekannt, dass ich mein Widerrufsrecht bei vollständiger Vertragserfüllung durch Sie verliere und dass ich bei einem Widerruf nach Beginn der Leistung Wertersatz für die bis dahin erbrachte Leistung schulde.</span>
+                </label>
+
+                <p style="margin: 14px 0 0 0; font-size: 12px; color: #7f8c8d;">
+                    Ohne diese Bestätigung kannst du trotzdem kaufen — dann beginnt die Leistung erst nach Ablauf der 14-tägigen Widerrufsfrist.
+                </p>
+            </div>
+
+            <p id="consent-fehler" style="color: #c0392b; font-size: 13px; text-align: center; margin: 12px 0 0 0; display: none;"></p>
+
+            <div style="text-align: center; margin-top: 16px;">
+                <button onclick="checkoutEinwilligungBestaetigen()" id="consent-weiter-btn"
+                        style="background: #27ae60; color: white; border: none; border-radius: 6px; padding: 12px 26px; font-size: 15px; font-weight: bold; cursor: pointer; font-family: inherit;">
+                    Weiter zur Tarifauswahl
+                </button>
+            </div>
+        </div>
+
         <div id="stripe-table-container"></div>
+
+        <!-- Wird nach Rückkehr aus dem Stripe-Checkout eingeblendet -->
+        <div id="checkout-warte-hinweis" style="display: none; text-align: center; padding: 20px; font-size: 14px; color: #2c3e50;">
+            <div style="font-size: 28px; margin-bottom: 8px;">⏳</div>
+            <b>Zahlung wird verarbeitet …</b>
+            <p style="color: #7f8c8d; font-size: 13px; margin: 8px 0 0 0;">
+                Die Freischaltung erfolgt automatisch, sobald die Zahlung bestätigt ist. Das dauert in der Regel wenige Sekunden.
+                Du kannst dieses Fenster offen lassen — der Status aktualisiert sich von selbst.
+            </p>
+            <p id="checkout-warte-status" style="color: #95a5a6; font-size: 12px; margin-top: 10px;"></p>
+        </div>
 
 		</div>
 	
 
 	</div>
 
+
+    <!-- ================================================================
+         RECHTS-MODALS: § 312k BGB (Kündigung) und § 356a BGB (Widerruf)
+         ================================================================ -->
+    <style>
+        .legal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 10001;
+            justify-content: center; align-items: flex-start;
+            overflow-y: auto; padding: 20px; box-sizing: border-box;
+        }
+        .legal-box {
+            background: #ffffff; color: #2c3e50; border-radius: 10px;
+            width: 100%; max-width: 620px; padding: 24px; position: relative;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.55); margin: auto;
+            font-size: 14px; line-height: 1.5;
+        }
+        .legal-box h2 { margin: 0 0 4px 0; font-size: 20px; color: #2c3e50; }
+        .legal-box h3 {
+            margin: 22px 0 10px 0; font-size: 14px; color: #34495e;
+            border-bottom: 1px solid #ecf0f1; padding-bottom: 6px; text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .legal-box label.feld { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #34495e; }
+        .legal-box input[type="text"],
+        .legal-box input[type="email"],
+        .legal-box input[type="date"],
+        .legal-box select,
+        .legal-box textarea {
+            width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 14px;
+            border: 1px solid #bdc3c7; border-radius: 5px; font-family: inherit;
+            color: #2c3e50; background: #fff; margin-bottom: 12px;
+        }
+        .legal-box textarea { resize: vertical; min-height: 70px; }
+        .legal-box .radio-zeile {
+            display: flex; gap: 9px; align-items: flex-start; cursor: pointer;
+            margin-bottom: 8px; font-size: 14px; font-weight: normal;
+        }
+        .legal-box .radio-zeile input { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+        .legal-box .pflicht { color: #c0392b; }
+        .legal-box .hinweis { font-size: 12px; color: #7f8c8d; margin: -6px 0 14px 0; }
+        .legal-close {
+            position: absolute; top: 14px; right: 14px; background: #ecf0f1; color: #7f8c8d;
+            border: none; border-radius: 50%; width: 30px; height: 30px;
+            font-weight: bold; cursor: pointer; font-size: 15px; line-height: 1;
+        }
+        .legal-submit {
+            width: 100%; background: #c0392b; color: white; border: none; border-radius: 6px;
+            padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer;
+            font-family: inherit; margin-top: 8px;
+        }
+        .legal-submit:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .legal-fehler { color: #c0392b; font-size: 13px; margin: 10px 0 0 0; display: none; }
+        .legal-quittung {
+            background: #f4f6f7; border: 1px solid #dfe4e6; border-left: 4px solid #27ae60;
+            border-radius: 4px; padding: 14px; font-family: "Courier New", monospace;
+            font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
+            max-height: 320px; overflow-y: auto; color: #2c3e50;
+        }
+    </style>
+
+    <!-- § 312k Abs. 2 BGB — Bestätigungsseite.
+         Enthält bewusst AUSSCHLIESSLICH die Kündigung: keine Rückhalteangebote,
+         keine Rabatte, keine Pausieren-Option (BGH 16.07.2026 – I ZR 200/25),
+         und keinen Login-Zwang (OLG Köln 10.01.2025 – 6 U 62/24). -->
+    <div id="kuendigung-modal" class="legal-overlay">
+        <div class="legal-box">
+            <button class="legal-close" onclick="schliesseKuendigung()" title="Schließen">✕</button>
+
+            <div id="kuendigung-formular">
+                <h2>Vertrag kündigen</h2>
+                <p class="hinweis" style="margin-top: 6px;">
+                    Hier kannst du dein Abonnement von „Abschnitt-Wasser Pro“ kündigen — ohne Login und ohne Zwischenschritte.
+                    Deine Kündigung wird sofort elektronisch bestätigt.
+                </p>
+
+                <h3>1. Art der Kündigung</h3>
+                <label class="radio-zeile">
+                    <input type="radio" name="kuend-art" value="ordentlich" checked onchange="kuendigungArtGeaendert()">
+                    <span><b>Ordentliche Kündigung</b><br><span style="font-size:12px;color:#7f8c8d;">Zum nächstmöglichen Zeitpunkt nach den vertraglichen Fristen.</span></span>
+                </label>
+                <label class="radio-zeile">
+                    <input type="radio" name="kuend-art" value="ausserordentlich" onchange="kuendigungArtGeaendert()">
+                    <span><b>Außerordentliche Kündigung aus wichtigem Grund</b><br><span style="font-size:12px;color:#7f8c8d;">Bitte gib den Kündigungsgrund an.</span></span>
+                </label>
+
+                <div id="kuend-grund-block" style="display: none; margin-top: 10px;">
+                    <label class="feld" for="kuend-grund">Kündigungsgrund <span class="pflicht">*</span></label>
+                    <textarea id="kuend-grund" placeholder="Bitte beschreibe den wichtigen Grund …"></textarea>
+                </div>
+
+                <h3>2. Welcher Vertrag soll gekündigt werden?</h3>
+                <label class="feld" for="kuend-vertrag">Vertrag <span class="pflicht">*</span></label>
+                <select id="kuend-vertrag">
+                    <option value="Abschnitt-Wasser Pro — Monatsabonnement">Abschnitt-Wasser Pro — Monatsabonnement</option>
+                    <option value="Abschnitt-Wasser Pro — Jahresabonnement">Abschnitt-Wasser Pro — Jahresabonnement</option>
+                    <option value="Abschnitt-Wasser Pro — Einmalkauf">Abschnitt-Wasser Pro — Einmalkauf</option>
+                    <option value="Abschnitt-Wasser Pro — Variante unbekannt">Ich weiß nicht genau, welche Variante ich habe</option>
+                </select>
+
+                <label class="feld" for="kuend-referenz">Vertrags- oder Kundennummer <span style="font-weight:normal;color:#95a5a6;">(freiwillig)</span></label>
+                <input type="text" id="kuend-referenz" placeholder="z. B. Rechnungs- oder Kundennummer aus der Stripe-Mail">
+                <p class="hinweis">Hilft bei der Zuordnung, ist aber keine Voraussetzung für die Kündigung.</p>
+
+                <h3>3. Zu welchem Zeitpunkt?</h3>
+                <label class="radio-zeile">
+                    <input type="radio" name="kuend-zeitpunkt" value="naechstmoeglich" checked onchange="kuendigungZeitpunktGeaendert()">
+                    <span>Zum nächstmöglichen Zeitpunkt</span>
+                </label>
+                <label class="radio-zeile">
+                    <input type="radio" name="kuend-zeitpunkt" value="datum" onchange="kuendigungZeitpunktGeaendert()">
+                    <span>Zu einem bestimmten Datum</span>
+                </label>
+                <div id="kuend-datum-block" style="display: none; margin-top: 8px;">
+                    <label class="feld" for="kuend-datum">Beendigung zum <span class="pflicht">*</span></label>
+                    <input type="date" id="kuend-datum">
+                </div>
+
+                <h3>4. Deine Angaben</h3>
+                <label class="feld" for="kuend-name">Vor- und Nachname <span class="pflicht">*</span></label>
+                <input type="text" id="kuend-name" placeholder="Max Mustermann" autocomplete="name">
+
+                <label class="feld" for="kuend-email">E-Mail-Adresse des Vertrags <span class="pflicht">*</span></label>
+                <input type="email" id="kuend-email" placeholder="name@beispiel.de" autocomplete="email">
+
+                <label class="feld" for="kuend-anschrift">Anschrift <span style="font-weight:normal;color:#95a5a6;">(freiwillig)</span></label>
+                <input type="text" id="kuend-anschrift" placeholder="Straße, PLZ, Ort">
+
+                <h3>5. Bestätigung senden an</h3>
+                <label class="feld" for="kuend-bestaetigung-email">E-Mail für die Kündigungsbestätigung <span class="pflicht">*</span></label>
+                <input type="email" id="kuend-bestaetigung-email" placeholder="name@beispiel.de" autocomplete="email">
+                <p class="hinweis">Du erhältst die Bestätigung zusätzlich sofort hier im Fenster zum Speichern und Ausdrucken.</p>
+
+                <p id="kuend-fehler" class="legal-fehler"></p>
+
+                <button class="legal-submit" id="kuend-submit-btn" onclick="kuendigungAbsenden()">Jetzt kündigen</button>
+                <p class="hinweis" style="text-align: center; margin-top: 10px;">
+                    Du kannst uns auch jederzeit formlos in Textform kündigen (z. B. per E-Mail).
+                </p>
+            </div>
+
+            <div id="kuendigung-bestaetigung" style="display: none;">
+                <h2 style="color: #27ae60;">✓ Kündigung eingegangen</h2>
+                <p style="font-size: 13.5px;">
+                    Deine Kündigung ist bei uns eingegangen und wird bearbeitet. Die verbindliche Bestätigung in Textform
+                    erhältst du zusätzlich per E-Mail an <b id="kuend-ziel-mail"></b>.
+                </p>
+                <p style="font-size: 13px; color: #7f8c8d;">
+                    Bitte speichere oder drucke den folgenden Beleg — er dokumentiert Inhalt, Datum und Uhrzeit deiner Erklärung.
+                </p>
+                <div class="legal-quittung" id="kuend-quittung-text"></div>
+                <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+                    <button onclick="quittungHerunterladen('kuendigung')" style="flex: 1; min-width: 150px; background: #27ae60; color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;">⬇️ Beleg speichern</button>
+                    <button onclick="schliesseKuendigung()" style="flex: 1; min-width: 150px; background: #7f8c8d; color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; cursor: pointer; font-family: inherit;">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- § 356a BGB — elektronische Widerrufsfunktion -->
+    <div id="widerruf-modal" class="legal-overlay">
+        <div class="legal-box">
+            <button class="legal-close" onclick="schliesseWiderruf()" title="Schließen">✕</button>
+
+            <div id="widerruf-formular">
+                <h2>Vertrag widerrufen</h2>
+                <p class="hinweis" style="margin-top: 6px;">
+                    Verbraucher können den Vertrag binnen 14 Tagen ab Vertragsschluss ohne Angabe von Gründen widerrufen.
+                    Einzelheiten stehen in der <a href="agb.html#widerruf" target="_blank" style="color: #2980b9;">Widerrufsbelehrung</a>.
+                </p>
+
+                <h3>Vertrag</h3>
+                <label class="feld" for="wid-vertrag">Widerrufene Leistung <span class="pflicht">*</span></label>
+                <select id="wid-vertrag">
+                    <option value="Abschnitt-Wasser Pro — Monatsabonnement">Abschnitt-Wasser Pro — Monatsabonnement</option>
+                    <option value="Abschnitt-Wasser Pro — Jahresabonnement">Abschnitt-Wasser Pro — Jahresabonnement</option>
+                    <option value="Abschnitt-Wasser Pro — Einmalkauf">Abschnitt-Wasser Pro — Einmalkauf</option>
+                    <option value="Abschnitt-Wasser Pro — Variante unbekannt">Ich weiß nicht genau, welche Variante ich habe</option>
+                </select>
+
+                <label class="feld" for="wid-bestelldatum">Bestellt am <span style="font-weight:normal;color:#95a5a6;">(freiwillig)</span></label>
+                <input type="date" id="wid-bestelldatum">
+
+                <h3>Deine Angaben</h3>
+                <label class="feld" for="wid-name">Vor- und Nachname <span class="pflicht">*</span></label>
+                <input type="text" id="wid-name" placeholder="Max Mustermann" autocomplete="name">
+
+                <label class="feld" for="wid-email">E-Mail-Adresse des Vertrags <span class="pflicht">*</span></label>
+                <input type="email" id="wid-email" placeholder="name@beispiel.de" autocomplete="email">
+
+                <label class="feld" for="wid-anschrift">Anschrift <span style="font-weight:normal;color:#95a5a6;">(freiwillig)</span></label>
+                <input type="text" id="wid-anschrift" placeholder="Straße, PLZ, Ort">
+
+                <label class="feld" for="wid-begruendung">Begründung <span style="font-weight:normal;color:#95a5a6;">(freiwillig)</span></label>
+                <textarea id="wid-begruendung" placeholder="Eine Begründung ist gesetzlich nicht erforderlich."></textarea>
+
+                <p id="wid-fehler" class="legal-fehler"></p>
+
+                <button class="legal-submit" id="wid-submit-btn" onclick="widerrufAbsenden()">Widerruf bestätigen</button>
+                <p class="hinweis" style="text-align: center; margin-top: 10px;">
+                    Du kannst den Widerruf auch formlos per E-Mail oder mit dem Muster-Widerrufsformular erklären.
+                </p>
+            </div>
+
+            <div id="widerruf-bestaetigung" style="display: none;">
+                <h2 style="color: #27ae60;">✓ Widerruf eingegangen</h2>
+                <p style="font-size: 13.5px;">
+                    Dein Widerruf ist bei uns eingegangen. Eine Bestätigung des Eingangs mit Zeitangabe erhältst du
+                    zusätzlich per E-Mail an <b id="wid-ziel-mail"></b>. Eine etwaige Rückzahlung erfolgt binnen
+                    14 Tagen ab Eingang über dasselbe Zahlungsmittel.
+                </p>
+                <div class="legal-quittung" id="wid-quittung-text"></div>
+                <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+                    <button onclick="quittungHerunterladen('widerruf')" style="flex: 1; min-width: 150px; background: #27ae60; color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;">⬇️ Beleg speichern</button>
+                    <button onclick="schliesseWiderruf()" style="flex: 1; min-width: 150px; background: #7f8c8d; color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; cursor: pointer; font-family: inherit;">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datenexport (AGB § 5 Abs. 5 lit. a) -->
+    <div id="export-modal" class="legal-overlay">
+        <div class="legal-box" style="max-width: 480px;">
+            <button class="legal-close" onclick="schliesseExport()" title="Schließen">✕</button>
+            <h2>Strecken exportieren</h2>
+            <p class="hinweis" style="margin-top: 6px;">
+                Lade alle gespeicherten Förderstrecken herunter — als JSON zum Wiedereinlesen oder als CSV für Excel.
+            </p>
+            <p id="export-quelle" style="font-size: 13px; background: #f4f6f7; border-radius: 5px; padding: 10px;"></p>
+            <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                <button onclick="streckenExportieren('json')" style="flex: 1; min-width: 130px; background: #2980b9; color: white; border: none; border-radius: 6px; padding: 13px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;">⬇️ JSON</button>
+                <button onclick="streckenExportieren('csv')" style="flex: 1; min-width: 130px; background: #16a085; color: white; border: none; border-radius: 6px; padding: 13px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;">⬇️ CSV</button>
+            </div>
+            <p id="export-fehler" class="legal-fehler"></p>
+        </div>
+    </div>
+
+    <script>
+    // =====================================================================
+    //  RECHTSKONFORME FUNKTIONEN
+    //  § 312k BGB (Kündigungsbutton) · § 356a BGB (Widerrufsfunktion)
+    //  § 356 Abs. 4 BGB (Checkout-Einwilligung) · Datenexport
+    //
+    //  WICHTIG: Keine dieser Funktionen schreibt jemals is_premium.
+    //  Die Freischaltung und der Entzug von Premium bleiben ausschließlich
+    //  Sache des Make.com-Szenarios. Die App legt hier nur Anträge und
+    //  Nachweise an und liest den Status.
+    // =====================================================================
+
+    const AGB_VERSION = 'Entwurf 2026-09-14';
+
+    let letzteQuittung = { kuendigung: null, widerruf: null };
+
+    function zeitstempelText(datum) {
+        return datum.toLocaleString('de-DE', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }) + ' Uhr';
+    }
+
+    function datumText(datum) {
+        return datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function neueId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        // Fallback für ältere Browser (Einsatz-Tablets!)
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function istEmail(wert) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((wert || '').trim());
+    }
+
+    function zeigeFehler(elementId, text) {
+        const el = document.getElementById(elementId);
+        el.innerText = text;
+        el.style.display = 'block';
+    }
+
+    function verbergeFehler(elementId) {
+        document.getElementById(elementId).style.display = 'none';
+    }
+
+    function dateiHerunterladen(inhalt, dateiname, mimeTyp) {
+        const blob = new Blob([inhalt], { type: mimeTyp });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = dateiname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // ---------------------------------------------------------------
+    //  § 312k BGB — Kündigungsbutton
+    // ---------------------------------------------------------------
+
+    function oeffneKuendigung() {
+        document.getElementById('kuendigung-formular').style.display = 'block';
+        document.getElementById('kuendigung-bestaetigung').style.display = 'none';
+        verbergeFehler('kuend-fehler');
+
+        // Kein Login-Zwang — aber wenn jemand eingeloggt ist, füllen wir vor.
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.email) {
+            document.getElementById('kuend-email').value = currentUser.email;
+            document.getElementById('kuend-bestaetigung-email').value = currentUser.email;
+        }
+
+        document.getElementById('kuend-datum').min = new Date().toISOString().slice(0, 10);
+        document.getElementById('kuendigung-modal').style.display = 'flex';
+    }
+
+    function schliesseKuendigung() {
+        document.getElementById('kuendigung-modal').style.display = 'none';
+        if (typeof map !== 'undefined' && map) setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    function kuendigungArtGeaendert() {
+        const art = document.querySelector('input[name="kuend-art"]:checked').value;
+        document.getElementById('kuend-grund-block').style.display =
+            (art === 'ausserordentlich') ? 'block' : 'none';
+    }
+
+    function kuendigungZeitpunktGeaendert() {
+        const zp = document.querySelector('input[name="kuend-zeitpunkt"]:checked').value;
+        document.getElementById('kuend-datum-block').style.display =
+            (zp === 'datum') ? 'block' : 'none';
+    }
+
+    async function kuendigungAbsenden() {
+        verbergeFehler('kuend-fehler');
+
+        const art        = document.querySelector('input[name="kuend-art"]:checked').value;
+        const grund      = document.getElementById('kuend-grund').value.trim();
+        const vertrag    = document.getElementById('kuend-vertrag').value;
+        const referenz   = document.getElementById('kuend-referenz').value.trim();
+        const zeitpunkt  = document.querySelector('input[name="kuend-zeitpunkt"]:checked').value;
+        const datum      = document.getElementById('kuend-datum').value;
+        const name       = document.getElementById('kuend-name').value.trim();
+        const email      = document.getElementById('kuend-email').value.trim();
+        const anschrift  = document.getElementById('kuend-anschrift').value.trim();
+        const bestMail   = document.getElementById('kuend-bestaetigung-email').value.trim();
+
+        if (!name)                               return zeigeFehler('kuend-fehler', 'Bitte gib deinen Vor- und Nachnamen an.');
+        if (!istEmail(email))                    return zeigeFehler('kuend-fehler', 'Bitte gib die E-Mail-Adresse an, mit der der Vertrag geschlossen wurde.');
+        if (!istEmail(bestMail))                 return zeigeFehler('kuend-fehler', 'Bitte gib eine gültige E-Mail-Adresse für die Bestätigung an.');
+        if (art === 'ausserordentlich' && !grund) return zeigeFehler('kuend-fehler', 'Bitte gib den wichtigen Grund für die außerordentliche Kündigung an.');
+        if (zeitpunkt === 'datum' && !datum)     return zeigeFehler('kuend-fehler', 'Bitte gib das gewünschte Beendigungsdatum an.');
+
+        const jetzt = new Date();
+        const beendigungText = (zeitpunkt === 'datum')
+            ? 'zum ' + datumText(new Date(datum + 'T00:00:00'))
+            : 'zum nächstmöglichen Zeitpunkt';
+
+        // § 312k Abs. 4 BGB: Inhalt der Erklärung muss speicherbar sein.
+        const erklaerung =
+            'KÜNDIGUNGSERKLÄRUNG\n' +
+            '====================================================\n' +
+            'Abgegeben am:        ' + zeitstempelText(jetzt) + '\n' +
+            'Art der Kündigung:   ' + (art === 'ordentlich' ? 'Ordentliche Kündigung' : 'Außerordentliche Kündigung aus wichtigem Grund') + '\n' +
+            (art === 'ausserordentlich' ? 'Kündigungsgrund:     ' + grund + '\n' : '') +
+            'Vertrag:             ' + vertrag + '\n' +
+            (referenz  ? 'Vertrags-/Kundennr.: ' + referenz + '\n' : '') +
+            'Beendigung:          ' + beendigungText + '\n' +
+            '----------------------------------------------------\n' +
+            'Name:                ' + name + '\n' +
+            'E-Mail des Vertrags: ' + email + '\n' +
+            (anschrift ? 'Anschrift:           ' + anschrift + '\n' : '') +
+            'Bestätigung an:      ' + bestMail + '\n' +
+            '====================================================\n' +
+            'Hiermit kündige ich den vorgenannten Vertrag ' + beendigungText + '.\n' +
+            '\n' +
+            'Anbieter: Tom Beckmann — „Abschnitt-Wasser"\n' +
+            'Diese Erklärung wurde über die Kündigungsschaltfläche nach\n' +
+            '§ 312k BGB in der Anwendung abgegeben.';
+
+        const btn = document.getElementById('kuend-submit-btn');
+        btn.disabled = true;
+        btn.innerText = 'Wird übermittelt …';
+
+        const datensatz = {
+            id:                  neueId(),
+            erklaert_am:         jetzt.toISOString(),
+            user_id:             (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null,
+            name:                name,
+            email:               email,
+            anschrift:           anschrift || null,
+            kunden_referenz:     referenz || null,
+            vertrag_bezeichnung: vertrag,
+            kuendigungs_art:     art,
+            kuendigungs_grund:   grund || null,
+            beendigung_zum:      zeitpunkt,
+            beendigung_datum:    (zeitpunkt === 'datum') ? datum : null,
+            bestaetigung_email:  bestMail,
+            erklaerungs_text:    erklaerung,
+            user_agent:          navigator.userAgent
+        };
+
+        let fehler = null;
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const { error } = await supabaseClient.from('kuendigungen').insert([datensatz]);
+            if (error) fehler = error.message;
+        } else {
+            fehler = 'Keine Verbindung zum Server.';
+        }
+
+        btn.disabled = false;
+        btn.innerText = 'Jetzt kündigen';
+
+        if (fehler) {
+            // Die Kündigung darf nicht an einem technischen Fehler scheitern —
+            // deshalb bekommt der Kunde hier einen rechtssicheren Ausweichweg.
+            return zeigeFehler('kuend-fehler',
+                'Die Übermittlung ist fehlgeschlagen (' + fehler + '). ' +
+                'Bitte sende deine Kündigung ersatzweise per E-Mail an [E-Mail-Adresse einfügen] — ' +
+                'die Frist ist bereits mit dem Absenden deiner Erklärung gewahrt.');
+        }
+
+        letzteQuittung.kuendigung = erklaerung;
+        document.getElementById('kuend-quittung-text').innerText = erklaerung;
+        document.getElementById('kuend-ziel-mail').innerText = bestMail;
+        document.getElementById('kuendigung-formular').style.display = 'none';
+        document.getElementById('kuendigung-bestaetigung').style.display = 'block';
+        document.querySelector('#kuendigung-modal .legal-box').scrollIntoView({ block: 'start' });
+    }
+
+    // ---------------------------------------------------------------
+    //  § 356a BGB — elektronische Widerrufsfunktion
+    // ---------------------------------------------------------------
+
+    function oeffneWiderruf() {
+        document.getElementById('widerruf-formular').style.display = 'block';
+        document.getElementById('widerruf-bestaetigung').style.display = 'none';
+        verbergeFehler('wid-fehler');
+
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.email) {
+            document.getElementById('wid-email').value = currentUser.email;
+        }
+        document.getElementById('wid-bestelldatum').max = new Date().toISOString().slice(0, 10);
+        document.getElementById('widerruf-modal').style.display = 'flex';
+    }
+
+    function schliesseWiderruf() {
+        document.getElementById('widerruf-modal').style.display = 'none';
+        if (typeof map !== 'undefined' && map) setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    async function widerrufAbsenden() {
+        verbergeFehler('wid-fehler');
+
+        const vertrag     = document.getElementById('wid-vertrag').value;
+        const bestelldat  = document.getElementById('wid-bestelldatum').value;
+        const name        = document.getElementById('wid-name').value.trim();
+        const email       = document.getElementById('wid-email').value.trim();
+        const anschrift   = document.getElementById('wid-anschrift').value.trim();
+        const begruendung = document.getElementById('wid-begruendung').value.trim();
+
+        if (!name)            return zeigeFehler('wid-fehler', 'Bitte gib deinen Vor- und Nachnamen an.');
+        if (!istEmail(email)) return zeigeFehler('wid-fehler', 'Bitte gib die E-Mail-Adresse an, mit der der Vertrag geschlossen wurde.');
+
+        const jetzt = new Date();
+
+        const erklaerung =
+            'WIDERRUFSERKLÄRUNG\n' +
+            '====================================================\n' +
+            'Eingegangen am:      ' + zeitstempelText(jetzt) + '\n' +
+            'Vertrag/Leistung:    ' + vertrag + '\n' +
+            (bestelldat ? 'Bestellt am:         ' + datumText(new Date(bestelldat + 'T00:00:00')) + '\n' : '') +
+            '----------------------------------------------------\n' +
+            'Name:                ' + name + '\n' +
+            'E-Mail:              ' + email + '\n' +
+            (anschrift   ? 'Anschrift:           ' + anschrift + '\n' : '') +
+            (begruendung ? 'Begründung:          ' + begruendung + '\n' : '') +
+            '====================================================\n' +
+            'Hiermit widerrufe ich den von mir abgeschlossenen Vertrag\n' +
+            'über die Erbringung der vorgenannten Dienstleistung.\n' +
+            '\n' +
+            'Anbieter: Tom Beckmann — „Abschnitt-Wasser"\n' +
+            'Diese Erklärung wurde über die elektronische Widerrufs-\n' +
+            'funktion nach § 356a BGB in der Anwendung abgegeben.';
+
+        const btn = document.getElementById('wid-submit-btn');
+        btn.disabled = true;
+        btn.innerText = 'Wird übermittelt …';
+
+        const datensatz = {
+            id:                  neueId(),
+            erklaert_am:         jetzt.toISOString(),
+            user_id:             (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null,
+            name:                name,
+            email:               email,
+            anschrift:           anschrift || null,
+            vertrag_bezeichnung: vertrag,
+            bestellt_am:         bestelldat || null,
+            begruendung:         begruendung || null,
+            erklaerungs_text:    erklaerung,
+            bestaetigung_email:  email,
+            user_agent:          navigator.userAgent
+        };
+
+        let fehler = null;
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const { error } = await supabaseClient.from('widerrufe').insert([datensatz]);
+            if (error) fehler = error.message;
+        } else {
+            fehler = 'Keine Verbindung zum Server.';
+        }
+
+        btn.disabled = false;
+        btn.innerText = 'Widerruf bestätigen';
+
+        if (fehler) {
+            return zeigeFehler('wid-fehler',
+                'Die Übermittlung ist fehlgeschlagen (' + fehler + '). ' +
+                'Bitte sende deinen Widerruf ersatzweise per E-Mail an [E-Mail-Adresse einfügen] — ' +
+                'für die Fristwahrung genügt das rechtzeitige Absenden.');
+        }
+
+        letzteQuittung.widerruf = erklaerung;
+        document.getElementById('wid-quittung-text').innerText = erklaerung;
+        document.getElementById('wid-ziel-mail').innerText = email;
+        document.getElementById('widerruf-formular').style.display = 'none';
+        document.getElementById('widerruf-bestaetigung').style.display = 'block';
+        document.querySelector('#widerruf-modal .legal-box').scrollIntoView({ block: 'start' });
+    }
+
+    function quittungHerunterladen(typ) {
+        const inhalt = letzteQuittung[typ];
+        if (!inhalt) return;
+        const stempel = new Date().toISOString().slice(0, 10);
+        const name = (typ === 'kuendigung' ? 'Kuendigung' : 'Widerruf') + '_Abschnitt-Wasser_' + stempel + '.txt';
+        // BOM voranstellen, damit Windows-Editoren die Umlaute korrekt anzeigen
+        dateiHerunterladen('﻿' + inhalt, name, 'text/plain;charset=utf-8');
+    }
+
+    // ---------------------------------------------------------------
+    //  § 356 Abs. 4 / § 357 Abs. 8 BGB — Einwilligung im Checkout
+    // ---------------------------------------------------------------
+
+    async function checkoutEinwilligungBestaetigen() {
+        verbergeFehler('consent-fehler');
+
+        const agbOk = document.getElementById('consent-agb').checked;
+        const lbOk  = document.getElementById('consent-leistungsbeginn').checked;
+
+        if (!agbOk) {
+            return zeigeFehler('consent-fehler', 'Bitte bestätige, dass du AGB, Widerrufsbelehrung und Datenschutzerklärung gelesen hast.');
+        }
+
+        const jetzt = new Date();
+
+        // Der exakte angezeigte Wortlaut ist der eigentliche Beweiswert —
+        // deshalb wird er aus dem DOM gelesen und mitgespeichert, statt im
+        // Code ein zweites Mal getippt zu werden (das driftet garantiert).
+        const wortlaut =
+            '[' + (agbOk ? 'x' : ' ') + '] ' + document.getElementById('consent-agb-text').innerText.trim() + '\n\n' +
+            '[' + (lbOk  ? 'x' : ' ') + '] ' + document.getElementById('consent-leistungsbeginn-text').innerText.trim();
+
+        const btn = document.getElementById('consent-weiter-btn');
+        btn.disabled = true;
+        btn.innerText = 'Einen Moment …';
+
+        if (typeof supabaseClient !== 'undefined' && supabaseClient &&
+            typeof currentUser !== 'undefined' && currentUser) {
+
+            const { error } = await supabaseClient.from('checkout_einwilligungen').insert([{
+                id:                                   neueId(),
+                erklaert_am:                          jetzt.toISOString(),
+                user_id:                              currentUser.id,
+                email:                                currentUser.email,
+                agb_akzeptiert:                       agbOk,
+                widerrufsbelehrung_zur_kenntnis:      agbOk,
+                vorzeitiger_leistungsbeginn_verlangt: lbOk,
+                kenntnis_erloeschen_bestaetigt:       lbOk,
+                einwilligungs_text:                   wortlaut,
+                agb_version:                          AGB_VERSION,
+                user_agent:                           navigator.userAgent
+            }]);
+
+            btn.disabled = false;
+            btn.innerText = 'Weiter zur Tarifauswahl';
+
+            if (error) {
+                // Ohne dokumentierte Einwilligung darf der Kauf nicht weiterlaufen:
+                // sonst behauptet die AGB etwas, das im Streitfall nicht belegbar ist.
+                return zeigeFehler('consent-fehler',
+                    'Deine Bestätigung konnte nicht gespeichert werden (' + error.message + '). ' +
+                    'Bitte versuche es erneut oder melde dich über „Feedback & Wünsche“.');
+            }
+        } else {
+            btn.disabled = false;
+            btn.innerText = 'Weiter zur Tarifauswahl';
+        }
+
+        document.getElementById('checkout-consent-gate').style.display = 'none';
+        rendereStripeTabelle();
+    }
+
+    function rendereStripeTabelle() {
+        // client-reference-id trägt die Supabase-User-ID zu Stripe und von dort
+        // per Webhook zu Make.com — das ist die Zuordnung, über die die
+        // Freischaltung läuft. Niemals entfernen.
+        document.getElementById('stripe-table-container').innerHTML =
+            '<stripe-pricing-table ' +
+            '  id="stripe-pricing-table-element" ' +
+            '  pricing-table-id="prctbl_1TycJBFstrnh7UIGwvjQlUAO" ' +
+            '  publishable-key="pk_test_51TybU2Fstrnh7UIGSdn61o8jaZS22WN0PlWHGkiiYWalArvL48CdOAo0jaR3JHDcv8KvvwTwa3WFnmKUHB69ddzK00WQVIDjIB" ' +
+            '  client-reference-id="' + currentUser.id + '" ' +
+            '  customer-email="' + currentUser.email + '">' +
+            '</stripe-pricing-table>';
+
+        starteCheckoutBeobachtung();
+        if (typeof map !== 'undefined' && map) setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // ---------------------------------------------------------------
+    //  Premium-Status nachladen
+    //
+    //  Die Freischaltung setzt Make.com asynchron in Supabase. Die App
+    //  darf is_premium NIE selbst schreiben — sie muss den Wert nur
+    //  zuverlässig neu einlesen. Drei Wege, absichtlich redundant:
+    //    1. Realtime-Subscription (sofort, sofern Realtime aktiviert ist)
+    //    2. Polling, solange der Checkout offen ist
+    //    3. Erneutes Laden, wenn der Tab wieder in den Vordergrund kommt
+    // ---------------------------------------------------------------
+
+    let profilKanal = null;
+    let checkoutPollTimer = null;
+
+    async function ladePremiumStatus() {
+        if (!supabaseClient || !currentUser) return false;
+
+        // Erst die erweiterten Spalten versuchen; fehlen sie noch (Migration
+        // nicht ausgeführt), fällt die App sauber auf reines is_premium zurück.
+        let { data, error } = await supabaseClient
+            .from('profiles')
+            .select('is_premium, kauf_typ, premium_bis, premium_status')
+            .eq('id', currentUser.id)
+            .single();
+
+        if (error) {
+            const nachladen = await supabaseClient
+                .from('profiles')
+                .select('is_premium')
+                .eq('id', currentUser.id)
+                .single();
+            if (nachladen.error || !nachladen.data) return false;
+            data = nachladen.data;
+        }
+
+        const vorher = isPremium;
+        isPremium = !!data.is_premium;
+        aktualisiereStatusAnzeige(data);
+        wendePremiumSperrenAn();
+
+        return (vorher !== isPremium);
+    }
+
+    function aktualisiereStatusAnzeige(profil) {
+        if (!currentUser) return;
+        const anzeige = document.getElementById('user-email-display');
+        const aboBtn  = document.getElementById('manage-abo-btn');
+
+        if (isPremium) {
+            let zusatz = ' ⭐️ PRO';
+            const typLabel = { einmalkauf: 'Einmalkauf', monatsabo: 'Monatsabo', jahresabo: 'Jahresabo' };
+            if (profil && profil.kauf_typ && typLabel[profil.kauf_typ]) {
+                zusatz += ' (' + typLabel[profil.kauf_typ] + ')';
+            }
+            // Ein Einmalkauf hat kein Ablaufdatum und darf nie als
+            // "abgelaufenes Abo" dargestellt werden (AGB § 5 Abs. 1).
+            if (profil && profil.premium_status === 'gekuendigt' &&
+                profil.premium_bis && profil.kauf_typ !== 'einmalkauf') {
+                zusatz += ' — gekündigt, läuft bis ' + datumText(new Date(profil.premium_bis));
+            }
+            anzeige.innerText = currentUser.email + zusatz;
+            if (aboBtn) aboBtn.innerText = '⚙️ Abo verwalten';
+        } else {
+            anzeige.innerText = currentUser.email;
+            if (aboBtn) aboBtn.innerText = '⭐️ PRO freischalten';
+        }
+
+        // Der Kündigungsbutton bleibt für alle sichtbar (§ 312k Abs. 3:
+        // ständig verfügbar) — er wird bewusst NICHT an isPremium gekoppelt.
+    }
+
+    function starteProfilRealtime() {
+        if (!supabaseClient || !currentUser) return;
+        stoppeProfilRealtime();
+
+        profilKanal = supabaseClient
+            .channel('profil-' + currentUser.id)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: 'id=eq.' + currentUser.id
+            }, async () => {
+                const geaendert = await ladePremiumStatus();
+                if (geaendert && isPremium) meldeFreischaltung();
+            })
+            .subscribe();
+    }
+
+    function stoppeProfilRealtime() {
+        if (profilKanal && supabaseClient) {
+            supabaseClient.removeChannel(profilKanal);
+            profilKanal = null;
+        }
+    }
+
+    // Fallback, falls Realtime nicht aktiviert ist: nach dem Öffnen des
+    // Checkouts rund 3 Minuten lang alle 4 Sekunden nachfragen.
+    function starteCheckoutBeobachtung() {
+        if (checkoutPollTimer) clearInterval(checkoutPollTimer);
+
+        const hinweis = document.getElementById('checkout-warte-hinweis');
+        const statusZeile = document.getElementById('checkout-warte-status');
+        hinweis.style.display = 'block';
+        statusZeile.innerText = '';
+
+        let versuche = 0;
+        const maxVersuche = 45;
+
+        checkoutPollTimer = setInterval(async () => {
+            versuche++;
+            statusZeile.innerText = 'Status wird geprüft … (' + versuche + '/' + maxVersuche + ')';
+
+            const geaendert = await ladePremiumStatus();
+            if (geaendert && isPremium) {
+                meldeFreischaltung();
+            } else if (versuche >= maxVersuche) {
+                clearInterval(checkoutPollTimer);
+                checkoutPollTimer = null;
+                // Nur die Statuszeile umschreiben, nicht den Container —
+                // sonst ist das Element beim nächsten Checkout weg.
+                statusZeile.innerHTML =
+                    '<b style="color:#7f8c8d;">Die Freischaltung dauert noch an.</b><br>' +
+                    'Deine Zahlung ist davon nicht betroffen. Lade die Seite in ein paar Minuten neu — ' +
+                    'falls PRO dann immer noch nicht aktiv ist, melde dich bitte über „Feedback &amp; Wünsche“.';
+            }
+        }, 4000);
+    }
+
+    function stoppeCheckoutBeobachtung() {
+        if (checkoutPollTimer) {
+            clearInterval(checkoutPollTimer);
+            checkoutPollTimer = null;
+        }
+        const hinweis = document.getElementById('checkout-warte-hinweis');
+        if (hinweis) hinweis.style.display = 'none';
+    }
+
+    function meldeFreischaltung() {
+        stoppeCheckoutBeobachtung();
+        closeStripeModal();
+        alert('✅ Vielen Dank! Deine PRO-Version ist jetzt freigeschaltet.\n\nAlle Premium-Funktionen stehen dir ab sofort zur Verfügung.');
+    }
+
+    // Wenn der Nutzer aus dem Stripe-Tab zurückkehrt, sofort nachsehen.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' &&
+            typeof currentUser !== 'undefined' && currentUser && !isPremium) {
+            ladePremiumStatus().then(geaendert => {
+                if (geaendert && isPremium) meldeFreischaltung();
+            });
+        }
+    });
+
+    // ---------------------------------------------------------------
+    //  Datenexport (AGB § 5 Abs. 5 lit. a)
+    // ---------------------------------------------------------------
+
+    async function sammleStrecken() {
+        if (typeof currentUser !== 'undefined' && currentUser && supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from('routes')
+                .select('id, name, route_data, created_at')
+                .eq('user_id', currentUser.id);
+            if (error) throw new Error(error.message);
+            return (data || []).map(r => ({
+                name:          r.name,
+                gespeichert_am: r.created_at || null,
+                punkte:        r.route_data || []
+            }));
+        }
+
+        const lokal = JSON.parse(localStorage.getItem('feuerwehr_strecken') || '{}');
+        return Object.keys(lokal).map(name => ({
+            name:          name,
+            gespeichert_am: null,
+            punkte:        lokal[name] || []
+        }));
+    }
+
+    async function oeffneExport() {
+        verbergeFehler('export-fehler');
+        const quelle = document.getElementById('export-quelle');
+        quelle.innerText = 'Strecken werden gezählt …';
+        document.getElementById('export-modal').style.display = 'flex';
+
+        try {
+            const strecken = await sammleStrecken();
+            const eingeloggt = (typeof currentUser !== 'undefined' && currentUser && supabaseClient);
+            const ort = eingeloggt ? 'Cloud-Speicher deines Kontos' : 'lokalen Browser-Speicher';
+            quelle.innerText = strecken.length === 0
+                ? 'Es sind aktuell keine Strecken gespeichert (' + ort + ').'
+                : strecken.length + ' gespeicherte ' + (strecken.length === 1 ? 'Strecke' : 'Strecken') + ' aus dem ' + ort + '.';
+        } catch (e) {
+            quelle.innerText = '';
+            zeigeFehler('export-fehler', 'Strecken konnten nicht gelesen werden: ' + e.message);
+        }
+    }
+
+    function schliesseExport() {
+        document.getElementById('export-modal').style.display = 'none';
+        if (typeof map !== 'undefined' && map) setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    async function streckenExportieren(format) {
+        verbergeFehler('export-fehler');
+
+        let strecken;
+        try {
+            strecken = await sammleStrecken();
+        } catch (e) {
+            return zeigeFehler('export-fehler', 'Export fehlgeschlagen: ' + e.message);
+        }
+
+        if (!strecken.length) {
+            return zeigeFehler('export-fehler', 'Es sind keine Strecken zum Exportieren vorhanden.');
+        }
+
+        const stempel = new Date().toISOString().slice(0, 10);
+        const eingeloggt = (typeof currentUser !== 'undefined' && currentUser);
+
+        if (format === 'json') {
+            const inhalt = JSON.stringify({
+                anwendung:     'Abschnitt-Wasser',
+                exportiert_am: new Date().toISOString(),
+                konto:         eingeloggt ? currentUser.email : null,
+                quelle:        eingeloggt ? 'supabase' : 'localstorage',
+                anzahl:        strecken.length,
+                strecken:      strecken
+            }, null, 2);
+            dateiHerunterladen(inhalt, 'Abschnitt-Wasser_Strecken_' + stempel + '.json', 'application/json;charset=utf-8');
+            return;
+        }
+
+        // CSV: eine Zeile je Streckenpunkt. Semikolon als Trenner und Komma
+        // als Dezimalzeichen, damit Excel in deutscher Lokalisierung die
+        // Datei ohne Import-Assistenten korrekt öffnet.
+        const zeilen = ['Strecke;Punkt-Nr;Breitengrad;Laengengrad'];
+        strecken.forEach(s => {
+            const sicher = '"' + String(s.name).replace(/"/g, '""') + '"';
+            (s.punkte || []).forEach((p, i) => {
+                const roh = (p && p.lng != null) ? p.lng : (p ? p.lon : null);
+                const lat = (p && p.lat != null) ? String(p.lat).replace('.', ',') : '';
+                const lng = (roh != null) ? String(roh).replace('.', ',') : '';
+                zeilen.push(sicher + ';' + (i + 1) + ';' + lat + ';' + lng);
+            });
+        });
+
+        dateiHerunterladen('﻿' + zeilen.join('\r\n'),
+            'Abschnitt-Wasser_Strecken_' + stempel + '.csv', 'text/csv;charset=utf-8');
+    }
+
+    // Modals per Escape schließen
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        ['kuendigung-modal', 'widerruf-modal', 'export-modal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.style.display === 'flex') el.style.display = 'none';
+        });
+    });
+    </script>
 
 </body>
 </html>
